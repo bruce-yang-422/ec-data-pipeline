@@ -113,17 +113,10 @@ ec-data-pipeline
 ## 🙋‍♂️ 聯絡窗口
 
 專案維護人：楊翔志  
-聯絡方式：YourMail@example.com
+聯絡方式：bruce.yichai20250505@gmail.com
 
 ---
 
 ## 🔖 補充備註
 
 - 本專案可自行擴充新平台欄位、串接 ERP/BQ/本地 DB
-- 若需協助 ETL 自動化、欄位同步、報表整合，歡迎討論！
-
----
-
-**讓你的電商數據 pipeline，也有自己的 DNA！**  
-（不是只有生科系才能說這種話😆）
-
