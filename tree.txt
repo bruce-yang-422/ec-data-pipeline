@@ -1,0 +1,53 @@
+ec-data-pipeline
+├── .gitattributes
+├── .gitignore
+├── README.md
+├── archive
+│   ├── raw
+│   │   └── .gitkeep
+│   └── reports
+│       └── .gitkeep
+├── config
+│   ├── ec_shops_universal_passwords.json
+│   ├── erp_db_connection.yaml
+│   ├── etmall_fields_mapping.json
+│   ├── mapping.xlsx
+│   ├── master_fields_mapping.json
+│   ├── momo_fields_mapping.json
+│   ├── pchome_fields_mapping.json
+│   ├── shopee_fields_mapping.json
+│   └── yahoo_fields_mapping.json
+├── data_processed
+│   ├── merged
+│   │   └── .gitkeep
+│   ├── reports
+│   │   ├── by_department
+│   │   │   └── .gitkeep
+│   │   ├── by_platform
+│   │   │   └── .gitkeep
+│   │   └── by_sku
+│   │       └── .gitkeep
+│   └── summary
+│       └── .gitkeep
+├── data_raw
+│   ├── .gitkeep
+│   ├── etmall
+│   ├── momo
+│   ├── pchome
+│   └── shopee
+├── docs
+│   ├── README.md
+│   └── data_dictionary.xlsx
+├── logs
+│   └── .gitkeep
+├── requirements.txt
+├── scripts
+│   ├── excel2mapping.py
+│   └── tree.py
+├── temp
+│   ├── .gitkeep
+│   ├── etmall
+│   ├── momo
+│   ├── pchome
+│   └── shopee
+└── tree.txt

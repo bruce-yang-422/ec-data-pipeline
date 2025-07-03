@@ -1,0 +1,234 @@
+{
+  "shop_name": {
+    "order": "1",
+    "zh_name": "平台名稱",
+    "type": "STRING",
+    "description": "平台名稱",
+    "required": "是",
+    "note": ""
+  },
+  "order_date": {
+    "order": "2",
+    "zh_name": "訂單日期",
+    "type": "DATE",
+    "description": "訂單日期",
+    "required": "是",
+    "note": ""
+  },
+  "order_seq_status": {
+    "order": "3",
+    "zh_name": "項次+燈號",
+    "type": "STRING",
+    "description": "項次＋燈號",
+    "required": "否",
+    "note": ""
+  },
+  "delivery_status_desc": {
+    "order": "4",
+    "zh_name": "配送狀態(說明參考Desc)",
+    "type": "STRING",
+    "description": "配送狀態",
+    "required": "否",
+    "note": ""
+  },
+  "delivery_message": {
+    "order": "5",
+    "zh_name": "配送訊息",
+    "type": "STRING",
+    "description": "配送訊息",
+    "required": "否",
+    "note": ""
+  },
+  "home_delivery_note": {
+    "order": "6",
+    "zh_name": "宅單備註",
+    "type": "STRING",
+    "description": "宅單備註",
+    "required": "否",
+    "note": ""
+  },
+  "order_sn": {
+    "order": "7",
+    "zh_name": "訂單編號",
+    "type": "STRING",
+    "description": "訂單編號",
+    "required": "是",
+    "note": ""
+  },
+  "recipient_name": {
+    "order": "8",
+    "zh_name": "收件人姓名",
+    "type": "STRING",
+    "description": "收件人姓名",
+    "required": "是",
+    "note": ""
+  },
+  "recipient_address": {
+    "order": "9",
+    "zh_name": "收件人地址",
+    "type": "STRING",
+    "description": "收件人地址",
+    "required": "是",
+    "note": ""
+  },
+  "carrier_ship_from_address": {
+    "order": "10",
+    "zh_name": "貨運公司出貨地址",
+    "type": "STRING",
+    "description": "出貨倉地址",
+    "required": "否",
+    "note": ""
+  },
+  "carrier_return_address": {
+    "order": "11",
+    "zh_name": "貨運公司回收地址",
+    "type": "STRING",
+    "description": "回收倉地址",
+    "required": "否",
+    "note": ""
+  },
+  "order_type": {
+    "order": "12",
+    "zh_name": "訂單類別",
+    "type": "STRING",
+    "description": "訂單類別",
+    "required": "否",
+    "note": ""
+  },
+  "customer_delivery_request": {
+    "order": "13",
+    "zh_name": "客戶配送需求",
+    "type": "STRING",
+    "description": "配送需求",
+    "required": "否",
+    "note": ""
+  },
+  "order_transfer_date": {
+    "order": "14",
+    "zh_name": "轉單日",
+    "type": "DATETIME",
+    "description": "轉單日",
+    "required": "否",
+    "note": ""
+  },
+  "estimated_ship_date": {
+    "order": "15",
+    "zh_name": "預計出貨日",
+    "type": "DATE",
+    "description": "預計出貨日",
+    "required": "否",
+    "note": ""
+  },
+  "product_manufacturer_code": {
+    "order": "16",
+    "zh_name": "商品原廠編號",
+    "type": "STRING",
+    "description": "原廠條碼",
+    "required": "否",
+    "note": ""
+  },
+  "product_sku": {
+    "order": "17",
+    "zh_name": "品號",
+    "type": "STRING",
+    "description": "品號",
+    "required": "是",
+    "note": ""
+  },
+  "product_name": {
+    "order": "18",
+    "zh_name": "品名",
+    "type": "STRING",
+    "description": "品名",
+    "required": "是",
+    "note": ""
+  },
+  "item_line_number": {
+    "order": "19",
+    "zh_name": "單名編號",
+    "type": "STRING",
+    "description": "明細序號",
+    "required": "否",
+    "note": ""
+  },
+  "item_detail": {
+    "order": "20",
+    "zh_name": "單品詳細",
+    "type": "STRING",
+    "description": "商品詳細",
+    "required": "否",
+    "note": ""
+  },
+  "quantity": {
+    "order": "21",
+    "zh_name": "數量",
+    "type": "INT",
+    "description": "數量",
+    "required": "是",
+    "note": ""
+  },
+  "cost_with_tax": {
+    "order": "22",
+    "zh_name": "進價(含稅)",
+    "type": "FLOAT",
+    "description": "進價(含稅)",
+    "required": "否",
+    "note": ""
+  },
+  "price_with_tax": {
+    "order": "23",
+    "zh_name": "售價(含稅)",
+    "type": "FLOAT",
+    "description": "售價(含稅)",
+    "required": "是",
+    "note": ""
+  },
+  "gift": {
+    "order": "24",
+    "zh_name": "贈品",
+    "type": "STRING",
+    "description": "贈品",
+    "required": "否",
+    "note": ""
+  },
+  "buyer_name": {
+    "order": "25",
+    "zh_name": "訂購人姓名",
+    "type": "STRING",
+    "description": "訂購人",
+    "required": "否",
+    "note": ""
+  },
+  "invoice_number": {
+    "order": "26",
+    "zh_name": "發票號碼",
+    "type": "STRING",
+    "description": "發票號碼",
+    "required": "否",
+    "note": ""
+  },
+  "invoice_date": {
+    "order": "27",
+    "zh_name": "發票日期",
+    "type": "DATE",
+    "description": "發票日期",
+    "required": "否",
+    "note": ""
+  },
+  "customer_personal_id": {
+    "order": "28",
+    "zh_name": "個人識別碼",
+    "type": "STRING",
+    "description": "個人識別碼",
+    "required": "否",
+    "note": ""
+  },
+  "group_variable_price_product": {
+    "order": "29",
+    "zh_name": "群組變價商品",
+    "type": "STRING",
+    "description": "群組變價商品",
+    "required": "否",
+    "note": ""
+  }
+}
