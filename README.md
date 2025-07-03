@@ -10,6 +10,30 @@
 本專案致力於**整合多平台電商訂單資料**，並自動進行欄位對齊、密碼管理、格式轉換、母檔累積、拆分報表、資料上傳雲端（Google BigQuery）及匯入本地 ERP/PostgreSQL。  
 一切流程自動化，讓你面對**複雜報表/跨部門問答**時，臉不紅氣不喘！
 
+## 專案簡介
+本專案為多平台電商訂單資料自動清洗、合併、欄位標準化與去重流程，支援 Shopee、Momo、PChome、Yahoo 等平台。
+
+## 主要功能
+- 批次讀取 Shopee 匯出訂單 Excel，依欄位對應自動轉換英文標頭與順序
+- 自動解析訂單編號前6碼為訂單日期（order_date）
+- 產生商品唯一鍵（sku_key），合併時以 order_date+order_sn+sku_key 為唯一鍵
+- item_seq 自動依同一訂單多商品流水號
+- 新資料自動覆蓋舊資料，確保訂單狀態與明細為最新
+- 支援多批次資料合併、去重、欄位自動補齊
+
+## 目錄結構
+- scripts/shopee_to_master_cleaner.py：Shopee 訂單自動清洗、合併主腳本
+- config/shopee_fields_mapping.json：欄位對應設定
+- data_processed/merged/shopee_master_orders_cleaned.csv：合併後標準檔
+
+## 使用方式
+1. 將 Shopee 匯出 Excel 放入 temp/shopee/
+2. 執行 `python scripts/shopee_to_master_cleaner.py`
+3. 合併結果於 data_processed/merged/shopee_master_orders_cleaned.csv
+
+## 更新日誌
+詳見 docs/README.md
+
 ---
 
 ## 📁 專案結構（目錄說明）
@@ -43,6 +67,7 @@ ec-data-pipeline
 - `scripts/`:  
   - `excel2mapping.py`: 欄位定義表自動轉 json/yaml 標準化 mapping 工具。  
   - `tree.py`: 專案結構一鍵印出。  
+  - `shopee_to_master_cleaner.py`: Shopee 訂單自動清洗、合併主腳本
 
 - `archive/`:  
   - 歷史原始資料、報表存放區，版本控管不易搞丟。
