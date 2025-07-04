@@ -103,3 +103,6 @@ config/env/
 # ========== [備註] ==========
 # 如有少數需跟蹤的範本CSV，可加反向例外：
 # !data_processed/summary/important_sample.csv
+config/*.json
+config/*.yaml
+config/*.xlsx
