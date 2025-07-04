@@ -5,230 +5,230 @@
     "type": "STRING",
     "description": "平台名稱",
     "required": "是",
-    "note": "momo"
+    "note": "固定值\"momo\""
   },
   "order_date": {
     "order": "2",
     "zh_name": "訂單日期",
     "type": "DATE",
-    "description": "訂單日期",
+    "description": "訂單成立日期",
     "required": "是",
-    "note": ""
-  },
-  "order_status": {
-    "order": "3",
-    "zh_name": "項次+燈號",
-    "type": "STRING",
-    "description": "項次＋燈號",
-    "required": "否",
-    "note": ""
-  },
-  "return_refund_status": {
-    "order": "4",
-    "zh_name": "配送狀態(說明參考Desc)",
-    "type": "STRING",
-    "description": "配送狀態",
-    "required": "否",
-    "note": ""
-  },
-  "delivery_message": {
-    "order": "5",
-    "zh_name": "配送訊息",
-    "type": "STRING",
-    "description": "配送訊息",
-    "required": "否",
-    "note": ""
-  },
-  "seller_note": {
-    "order": "6",
-    "zh_name": "宅單備註",
-    "type": "STRING",
-    "description": "宅單備註",
-    "required": "否",
-    "note": ""
+    "note": "從訂單編號前6碼解析YYMMDD格式"
   },
   "order_sn": {
-    "order": "7",
+    "order": "3",
     "zh_name": "訂單編號",
     "type": "STRING",
-    "description": "訂單編號",
+    "description": "momo訂單編號",
     "required": "是",
-    "note": ""
+    "note": "格式：YYMMDDXXXXXXX-001-001-001，第一個001為品項流水號，後6碼與退換貨/補出貨相關"
   },
-  "recipient_name": {
-    "order": "8",
-    "zh_name": "收件人姓名",
+  "shipping_provider": {
+    "order": "4",
+    "zh_name": "物流公司",
     "type": "STRING",
-    "description": "收件人姓名",
-    "required": "是",
-    "note": ""
-  },
-  "recipient_address": {
-    "order": "9",
-    "zh_name": "收件人地址",
-    "type": "STRING",
-    "description": "收件人地址",
-    "required": "是",
-    "note": ""
-  },
-  "carrier_ship_from_address": {
-    "order": "10",
-    "zh_name": "貨運公司出貨地址",
-    "type": "STRING",
-    "description": "出貨倉地址",
+    "description": "物流公司",
     "required": "否",
-    "note": ""
+    "note": "如：指定-宅配通"
   },
-  "carrier_return_address": {
-    "order": "11",
-    "zh_name": "貨運公司回收地址",
+  "tracking_number": {
+    "order": "5",
+    "zh_name": "配送單號",
     "type": "STRING",
-    "description": "回收倉地址",
+    "description": "配送單號",
     "required": "否",
-    "note": ""
+    "note": "物流追蹤號碼"
   },
   "order_type": {
-    "order": "12",
+    "order": "6",
     "zh_name": "訂單類別",
     "type": "STRING",
     "description": "訂單類別",
     "required": "否",
-    "note": ""
+    "note": "如：一般訂單"
   },
   "customer_delivery_request": {
-    "order": "13",
+    "order": "7",
     "zh_name": "客戶配送需求",
     "type": "STRING",
     "description": "配送需求",
     "required": "否",
-    "note": ""
+    "note": "客戶特殊配送要求"
   },
   "order_transfer_date": {
-    "order": "14",
+    "order": "8",
     "zh_name": "轉單日",
     "type": "DATETIME",
-    "description": "轉單日",
+    "description": "轉單日期時間",
     "required": "否",
-    "note": ""
+    "note": "格式：YYYY/MM/DD HH:MM"
   },
   "ship_by_date": {
-    "order": "15",
-    "zh_name": "預計出貨日",
+    "order": "9",
+    "zh_name": "預計出貨/回收日",
     "type": "DATE",
     "description": "預計出貨日",
     "required": "否",
-    "note": ""
+    "note": "格式：YYYY/MM/DD"
+  },
+  "recipient_name": {
+    "order": "10",
+    "zh_name": "收件人姓名",
+    "type": "STRING",
+    "description": "收件人姓名",
+    "required": "是",
+    "note": "個資遮罩顯示"
   },
   "product_manufacturer_code": {
-    "order": "16",
+    "order": "11",
     "zh_name": "商品原廠編號",
     "type": "STRING",
     "description": "原廠條碼",
     "required": "否",
-    "note": ""
+    "note": "EAN碼或廠商編號"
   },
   "product_sku_main": {
-    "order": "17",
+    "order": "12",
     "zh_name": "品號",
     "type": "STRING",
-    "description": "品號",
+    "description": "商品品號",
     "required": "是",
-    "note": ""
+    "note": "momo內部商品編號"
   },
   "product_name": {
-    "order": "18",
+    "order": "13",
     "zh_name": "品名",
     "type": "STRING",
-    "description": "品名",
+    "description": "商品名稱",
     "required": "是",
-    "note": ""
+    "note": "完整商品標題"
   },
-  "item_seq": {
-    "order": "19",
-    "zh_name": "單名編號",
+  "single_product_id": {
+    "order": "14",
+    "zh_name": "單品編號",
     "type": "STRING",
-    "description": "明細序號",
+    "description": "單品編號",
     "required": "否",
-    "note": ""
+    "note": "商品變化版本編號"
   },
   "product_variation": {
-    "order": "20",
+    "order": "15",
     "zh_name": "單品詳細",
     "type": "STRING",
-    "description": "商品詳細",
+    "description": "商品規格詳細",
     "required": "否",
-    "note": ""
+    "note": "如：成貓食譜 6kg"
   },
   "quantity": {
-    "order": "21",
+    "order": "16",
     "zh_name": "數量",
-    "type": "INT",
-    "description": "數量",
+    "type": "INTEGER",
+    "description": "商品數量",
     "required": "是",
-    "note": ""
+    "note": "購買件數"
   },
   "product_cost": {
-    "order": "22",
+    "order": "17",
     "zh_name": "進價(含稅)",
     "type": "FLOAT",
-    "description": "進價(含稅)",
+    "description": "商品進價",
     "required": "否",
-    "note": ""
+    "note": "含稅進貨成本"
   },
   "product_original_price": {
-    "order": "23",
+    "order": "18",
     "zh_name": "售價(含稅)",
     "type": "FLOAT",
-    "description": "售價(含稅)",
+    "description": "商品售價",
     "required": "是",
-    "note": ""
+    "note": "含稅銷售價格"
   },
   "gift": {
-    "order": "24",
+    "order": "19",
     "zh_name": "贈品",
     "type": "STRING",
-    "description": "贈品",
+    "description": "贈品資訊",
     "required": "否",
-    "note": ""
+    "note": "隨商品贈送物品說明"
   },
   "buyer_name": {
-    "order": "25",
+    "order": "20",
     "zh_name": "訂購人姓名",
     "type": "STRING",
-    "description": "訂購人",
+    "description": "訂購人姓名",
     "required": "否",
-    "note": ""
+    "note": "下單人姓名"
   },
   "invoice_number": {
-    "order": "26",
+    "order": "21",
     "zh_name": "發票號碼",
     "type": "STRING",
     "description": "發票號碼",
     "required": "否",
-    "note": ""
+    "note": "如：JK12763855"
   },
   "invoice_date": {
-    "order": "27",
+    "order": "22",
     "zh_name": "發票日期",
     "type": "DATE",
     "description": "發票日期",
     "required": "否",
-    "note": ""
+    "note": "格式：YYYY/MM/DD"
   },
   "customer_personal_id": {
-    "order": "28",
+    "order": "23",
     "zh_name": "個人識別碼",
     "type": "STRING",
     "description": "個人識別碼",
     "required": "否",
-    "note": ""
+    "note": "客戶唯一識別號"
   },
   "group_variable_price_product": {
-    "order": "29",
+    "order": "24",
     "zh_name": "群組變價商品",
     "type": "STRING",
     "description": "群組變價商品",
     "required": "否",
-    "note": ""
+    "note": "是/否，是否為變價商品"
+  },
+  "order_completion_date": {
+    "order": "25",
+    "zh_name": "結案日期",
+    "type": "DATE",
+    "description": "訂單結案日期",
+    "required": "是",
+    "note": "訂單處理完成日期"
+  },
+  "return_refund_status": {
+    "order": "26",
+    "zh_name": "退貨原因",
+    "type": "STRING",
+    "description": "退貨原因",
+    "required": "否",
+    "note": "退貨退款原因說明"
+  },
+  "processing_date": {
+    "order": "27",
+    "zh_name": "處理日期",
+    "type": "DATETIME",
+    "description": "系統處理日期",
+    "required": "是",
+    "note": "ETL自動產生當前時間戳"
+  },
+  "is_abnormal_order": {
+    "order": "28",
+    "zh_name": "是否異常單",
+    "type": "BOOLEAN",
+    "description": "訂單非第一次出現",
+    "required": "是",
+    "note": "判斷標準：訂單後6碼非001-001結構（退換貨/補出貨等異常狀況）"
+  },
+  "key_for_merge": {
+    "order": "29",
+    "zh_name": "合併鍵",
+    "type": "STRING",
+    "description": "去重識別鍵",
+    "required": "是",
+    "note": "platform + order_sn"
   }
 }

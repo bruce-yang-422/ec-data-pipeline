@@ -278,5 +278,13 @@
     "description": "系統導入/更新時間（自動填）",
     "required": "是",
     "note": ""
+  },
+  "key_for_merge": {
+    "order": "36",
+    "zh_name": "合併鍵",
+    "type": "STRING",
+    "description": "去重識別鍵",
+    "required": "是",
+    "note": ""
   }
 }

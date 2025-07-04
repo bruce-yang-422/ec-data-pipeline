@@ -1,6 +1,13 @@
 # 開發日誌與進度
 
 ## 2025-07-04
+- 完成 momo_csv_to_master_cleaner.py 批次處理功能，支援 Momo 平台訂單資料自動清洗與合併。
+- 實作多平台統一處理架構，shopee_csv_to_master_cleaner.py 與 momo_csv_to_master_cleaner.py 共用相同處理邏輯。
+- 優化資料處理流程，支援批次讀取、欄位對應、自動去重、新資料覆蓋舊資料等完整功能。
+- 完善 temp 目錄自動清理機制，確保處理後檔案不殘留。
+- 測試多平台資料合併與 item_seq 產生，驗證處理流程穩定性。
+
+## 2025-07-04
 - excel_password_remover.py 支援自動移除 Shopee Excel 報表密碼，並自動轉換為 CSV，只保留 CSV 檔案。
 - 處理過程與結果完整記錄於 log，並自動清理 temp/shopee 及相關 log。
 - 修正多帳號密碼對應與批次處理流程。
