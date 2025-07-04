@@ -31,7 +31,7 @@
     "required": "是",
     "note": ""
   },
-  "order_id": {
+  "order_sn": {
     "order": "5",
     "zh_name": "訂單編號",
     "type": "STRING",
@@ -39,7 +39,7 @@
     "required": "是",
     "note": ""
   },
-  "line_no": {
+  "item_seq": {
     "order": "6",
     "zh_name": "訂單/明細序號",
     "type": "INT",
@@ -63,7 +63,7 @@
     "required": "否",
     "note": ""
   },
-  "buyer_account": {
+  "buyer_username": {
     "order": "9",
     "zh_name": "買家帳號",
     "type": "STRING",
@@ -71,7 +71,7 @@
     "required": "是",
     "note": ""
   },
-  "total_order_amount": {
+  "product_total_price": {
     "order": "10",
     "zh_name": "訂單總金額",
     "type": "NUMERIC",
@@ -79,7 +79,7 @@
     "required": "是",
     "note": ""
   },
-  "buyer_paid_amount": {
+  "total_amount_paid_by_buyer": {
     "order": "11",
     "zh_name": "買家支付金額",
     "type": "NUMERIC",
@@ -103,7 +103,7 @@
     "required": "是",
     "note": ""
   },
-  "product_option_name": {
+  "product_variation": {
     "order": "14",
     "zh_name": "選項名稱",
     "type": "STRING",
@@ -111,7 +111,7 @@
     "required": "是",
     "note": ""
   },
-  "product_sku": {
+  "product_sku_main": {
     "order": "15",
     "zh_name": "主商品編號",
     "type": "STRING",
@@ -119,7 +119,7 @@
     "required": "是",
     "note": ""
   },
-  "option_sku": {
+  "product_sku_variation": {
     "order": "16",
     "zh_name": "選項編號",
     "type": "STRING",
@@ -135,7 +135,7 @@
     "required": "是",
     "note": ""
   },
-  "product_amount": {
+  "product_original_price": {
     "order": "18",
     "zh_name": "商品金額",
     "type": "NUMERIC",
@@ -143,7 +143,7 @@
     "required": "是",
     "note": ""
   },
-  "product_promo_amount": {
+  "product_campaign_price": {
     "order": "19",
     "zh_name": "商品促銷金額",
     "type": "NUMERIC",
@@ -159,7 +159,7 @@
     "required": "是",
     "note": ""
   },
-  "coupon_used": {
+  "voucher": {
     "order": "21",
     "zh_name": "是否使用優惠券",
     "type": "BOOL/STRING",
@@ -191,7 +191,7 @@
     "required": "否",
     "note": ""
   },
-  "shipping_fee": {
+  "buyer_paid_shipping_fee": {
     "order": "25",
     "zh_name": "運費",
     "type": "NUMERIC",
@@ -231,7 +231,7 @@
     "required": "否",
     "note": ""
   },
-  "ship_date": {
+  "actual_shipping_timestamp": {
     "order": "30",
     "zh_name": "實際出貨日",
     "type": "DATE",
@@ -247,7 +247,7 @@
     "required": "否",
     "note": ""
   },
-  "cancel_reason": {
+  "cancellation_reason": {
     "order": "32",
     "zh_name": "取消原因",
     "type": "STRING",

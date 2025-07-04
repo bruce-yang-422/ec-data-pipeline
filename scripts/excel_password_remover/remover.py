@@ -3,8 +3,9 @@
 import msoffcrypto
 import shutil
 from pathlib import Path
+from typing import Union
 
-def remove_password(input_path, output_path, password):
+def remove_password(input_path: Union[str, Path], output_path: Union[str, Path], password: str) -> None:
     """
     使用 msoffcrypto-tool 解開 Excel 開啟密碼，另存為 output_path。
     若檔案未加密或非 Office 格式，直接複製。

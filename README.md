@@ -20,16 +20,20 @@
 - item_seq 自動依同一訂單多商品流水號
 - 新資料自動覆蓋舊資料，確保訂單狀態與明細為最新
 - 支援多批次資料合併、去重、欄位自動補齊
+- **自動移除 Shopee Excel 報表密碼，並轉存為 CSV，只保留 CSV 檔案**
+- 處理過程與結果完整記錄於 log，並自動清理 temp/shopee 及相關 log
 
 ## 目錄結構
 - scripts/shopee_to_master_cleaner.py：Shopee 訂單自動清洗、合併主腳本
+- scripts/excel_password_remover/：自動移除 Excel 密碼並轉存 CSV
 - config/shopee_fields_mapping.json：欄位對應設定
 - data_processed/merged/shopee_master_orders_cleaned.csv：合併後標準檔
 
 ## 使用方式
-1. 將 Shopee 匯出 Excel 放入 temp/shopee/
-2. 執行 `python scripts/shopee_to_master_cleaner.py`
-3. 合併結果於 data_processed/merged/shopee_master_orders_cleaned.csv
+1. 將 Shopee 匯出 Excel 放入 data_raw/shopee/
+2. 執行 `python scripts/excel_password_remover/main.py`，自動移除密碼並轉存為 CSV
+3. 執行 `python scripts/shopee_to_master_cleaner.py`，自動合併、清洗、產生主檔
+4. 合併結果於 data_processed/merged/shopee_master_orders_cleaned.csv
 
 ## 更新日誌
 詳見 docs/README.md
@@ -44,7 +48,8 @@ ec-data-pipeline
 ├── data_raw/     # 原始報表資料（平台/年月分資料夾）
 ├── data_processed/ # 處理後的資料（報表/合併/分群/彙總）
 ├── archive/      # 歷史歸檔（原始/報表）
-├── scripts/      # 處理腳本（格式轉換、mapping工具等）
+├── scripts/      # 處理腳本（格式轉換、mapping工具、excel密碼移除）
+│   └── excel_password_remover/ # Excel 密碼移除與轉檔
 ├── temp/         # 臨時檔案（解密/快取）
 ├── docs/         # 說明/數據字典
 ├── logs/         # 日誌
@@ -68,6 +73,7 @@ ec-data-pipeline
   - `excel2mapping.py`: 欄位定義表自動轉 json/yaml 標準化 mapping 工具。  
   - `tree.py`: 專案結構一鍵印出。  
   - `shopee_to_master_cleaner.py`: Shopee 訂單自動清洗、合併主腳本
+  - `excel_password_remover/`: Excel 密碼移除與自動轉 CSV
 
 - `archive/`:  
   - 歷史原始資料、報表存放區，版本控管不易搞丟。
@@ -81,6 +87,7 @@ ec-data-pipeline
 
 1. **原始報表解密、匯入**：  
    放到 `data_raw/平台/`，如 MOMO、Shopee、東森⋯  
+   Shopee 請先執行 `python scripts/excel_password_remover/main.py`，自動移除密碼並轉存為 CSV。
 2. **欄位自動對齊**：  
    依 `config/mapping.xlsx` 與各平台 json，轉換統一格式。
 3. **自動產出母檔**：  

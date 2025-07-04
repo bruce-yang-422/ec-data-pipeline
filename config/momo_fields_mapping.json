@@ -1,11 +1,11 @@
 {
-  "shop_name": {
+  "platform": {
     "order": "1",
     "zh_name": "平台名稱",
     "type": "STRING",
     "description": "平台名稱",
     "required": "是",
-    "note": ""
+    "note": "momo"
   },
   "order_date": {
     "order": "2",
@@ -15,7 +15,7 @@
     "required": "是",
     "note": ""
   },
-  "order_seq_status": {
+  "order_status": {
     "order": "3",
     "zh_name": "項次+燈號",
     "type": "STRING",
@@ -23,7 +23,7 @@
     "required": "否",
     "note": ""
   },
-  "delivery_status_desc": {
+  "return_refund_status": {
     "order": "4",
     "zh_name": "配送狀態(說明參考Desc)",
     "type": "STRING",
@@ -39,7 +39,7 @@
     "required": "否",
     "note": ""
   },
-  "home_delivery_note": {
+  "seller_note": {
     "order": "6",
     "zh_name": "宅單備註",
     "type": "STRING",
@@ -111,7 +111,7 @@
     "required": "否",
     "note": ""
   },
-  "estimated_ship_date": {
+  "ship_by_date": {
     "order": "15",
     "zh_name": "預計出貨日",
     "type": "DATE",
@@ -127,7 +127,7 @@
     "required": "否",
     "note": ""
   },
-  "product_sku": {
+  "product_sku_main": {
     "order": "17",
     "zh_name": "品號",
     "type": "STRING",
@@ -143,7 +143,7 @@
     "required": "是",
     "note": ""
   },
-  "item_line_number": {
+  "item_seq": {
     "order": "19",
     "zh_name": "單名編號",
     "type": "STRING",
@@ -151,7 +151,7 @@
     "required": "否",
     "note": ""
   },
-  "item_detail": {
+  "product_variation": {
     "order": "20",
     "zh_name": "單品詳細",
     "type": "STRING",
@@ -167,7 +167,7 @@
     "required": "是",
     "note": ""
   },
-  "cost_with_tax": {
+  "product_cost": {
     "order": "22",
     "zh_name": "進價(含稅)",
     "type": "FLOAT",
@@ -175,7 +175,7 @@
     "required": "否",
     "note": ""
   },
-  "price_with_tax": {
+  "product_original_price": {
     "order": "23",
     "zh_name": "售價(含稅)",
     "type": "FLOAT",

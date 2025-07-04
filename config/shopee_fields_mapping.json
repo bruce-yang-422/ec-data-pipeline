@@ -1,6 +1,14 @@
 {
-  "shop_name": {
+  "platform": {
     "order": "1",
+    "zh_name": "平台名稱",
+    "type": "STRING",
+    "description": "平台名稱",
+    "required": "是",
+    "note": "shopee"
+  },
+  "shop_name": {
+    "order": "2",
     "zh_name": "店鋪名稱",
     "type": "STRING",
     "description": "店鋪名稱",
@@ -8,7 +16,7 @@
     "note": ""
   },
   "shop_account": {
-    "order": "2",
+    "order": "3",
     "zh_name": "店鋪帳號",
     "type": "STRING",
     "description": "店鋪帳號",
@@ -16,7 +24,7 @@
     "note": ""
   },
   "processing_date": {
-    "order": "3",
+    "order": "4",
     "zh_name": "處理日期",
     "type": "DATE",
     "description": "系統處理或匯入日期",
@@ -24,7 +32,7 @@
     "note": "ETL自動產生"
   },
   "order_date": {
-    "order": "4",
+    "order": "5",
     "zh_name": "訂單成立日期",
     "type": "DATE",
     "description": "訂單成立日",
@@ -32,7 +40,7 @@
     "note": ""
   },
   "order_sn": {
-    "order": "5",
+    "order": "6",
     "zh_name": "訂單編號",
     "type": "STRING",
     "description": "平台訂單編號",
@@ -40,15 +48,15 @@
     "note": ""
   },
   "item_seq": {
-    "order": "6",
+    "order": "7",
     "zh_name": "商品序號",
     "type": "INT",
-    "description": "同一訂單多品項時自動流水號，單一品項為1，依序2、3...",
+    "description": "同一訂單多品項時自動流水號，單一品項為1，依序2、3…",
     "required": "是",
     "note": "ETL自動產生"
   },
   "order_status": {
-    "order": "7",
+    "order": "8",
     "zh_name": "訂單狀態",
     "type": "STRING",
     "description": "訂單處理狀態",
@@ -56,7 +64,7 @@
     "note": ""
   },
   "cancellation_reason": {
-    "order": "8",
+    "order": "9",
     "zh_name": "不成立原因",
     "type": "STRING",
     "description": "訂單未成立/取消原因",
@@ -64,7 +72,7 @@
     "note": ""
   },
   "return_refund_status": {
-    "order": "9",
+    "order": "10",
     "zh_name": "退貨 / 退款狀態",
     "type": "STRING",
     "description": "退貨或退款狀態",
@@ -72,7 +80,7 @@
     "note": ""
   },
   "buyer_username": {
-    "order": "10",
+    "order": "11",
     "zh_name": "買家帳號",
     "type": "STRING",
     "description": "買家平台帳號",
@@ -80,7 +88,7 @@
     "note": ""
   },
   "order_creation_timestamp": {
-    "order": "11",
+    "order": "12",
     "zh_name": "訂單成立日期",
     "type": "TIMESTAMP",
     "description": "訂單建立日期時間",
@@ -88,7 +96,7 @@
     "note": ""
   },
   "product_total_price": {
-    "order": "12",
+    "order": "13",
     "zh_name": "商品總價",
     "type": "NUMERIC",
     "description": "所有商品原價合計",
@@ -96,7 +104,7 @@
     "note": ""
   },
   "buyer_paid_shipping_fee": {
-    "order": "13",
+    "order": "14",
     "zh_name": "買家支付運費",
     "type": "NUMERIC",
     "description": "買家實付運費",
@@ -104,7 +112,7 @@
     "note": ""
   },
   "shopee_shipping_subsidy": {
-    "order": "14",
+    "order": "15",
     "zh_name": "蝦皮補助運費",
     "type": "NUMERIC",
     "description": "平台補貼運費",
@@ -112,7 +120,7 @@
     "note": ""
   },
   "return_shipping_fee": {
-    "order": "15",
+    "order": "16",
     "zh_name": "退貨運費",
     "type": "NUMERIC",
     "description": "買家退貨之運費",
@@ -120,7 +128,7 @@
     "note": ""
   },
   "total_amount_paid_by_buyer": {
-    "order": "16",
+    "order": "17",
     "zh_name": "買家總支付金額",
     "type": "NUMERIC",
     "description": "買家實付總金額",
@@ -128,7 +136,7 @@
     "note": ""
   },
   "shopee_subsidy_amount": {
-    "order": "17",
+    "order": "18",
     "zh_name": "蝦皮補貼金額",
     "type": "NUMERIC",
     "description": "平台額外補貼",
@@ -136,7 +144,7 @@
     "note": ""
   },
   "shopee_coin_offset": {
-    "order": "18",
+    "order": "19",
     "zh_name": "蝦幣折抵",
     "type": "NUMERIC",
     "description": "買家蝦幣折抵",
@@ -144,7 +152,7 @@
     "note": ""
   },
   "credit_card_promotion_discount": {
-    "order": "19",
+    "order": "20",
     "zh_name": "銀行信用卡活動折抵",
     "type": "NUMERIC",
     "description": "信用卡活動折扣",
@@ -152,7 +160,7 @@
     "note": ""
   },
   "voucher_code": {
-    "order": "20",
+    "order": "21",
     "zh_name": "優惠代碼",
     "type": "STRING",
     "description": "平台/賣家發行的優惠券代碼",
@@ -160,7 +168,7 @@
     "note": ""
   },
   "seller_voucher": {
-    "order": "21",
+    "order": "22",
     "zh_name": "賣場優惠券",
     "type": "STRING",
     "description": "賣家發行優惠券",
@@ -168,7 +176,7 @@
     "note": ""
   },
   "seller_coin_cashback_voucher": {
-    "order": "22",
+    "order": "23",
     "zh_name": "賣家蝦幣回饋券",
     "type": "NUMERIC",
     "description": "蝦幣回饋券",
@@ -176,7 +184,7 @@
     "note": ""
   },
   "voucher": {
-    "order": "23",
+    "order": "24",
     "zh_name": "優惠券",
     "type": "NUMERIC",
     "description": "平台其他優惠券",
@@ -184,7 +192,7 @@
     "note": ""
   },
   "transaction_fee": {
-    "order": "24",
+    "order": "25",
     "zh_name": "成交手續費",
     "type": "NUMERIC",
     "description": "平台收取手續費",
@@ -192,7 +200,7 @@
     "note": ""
   },
   "other_service_fee": {
-    "order": "25",
+    "order": "26",
     "zh_name": "其他服務費",
     "type": "NUMERIC",
     "description": "平台收取額外服務費",
@@ -200,7 +208,7 @@
     "note": ""
   },
   "payment_processing_fee": {
-    "order": "26",
+    "order": "27",
     "zh_name": "金流與系統處理費",
     "type": "NUMERIC",
     "description": "金流或系統服務費",
@@ -208,7 +216,7 @@
     "note": ""
   },
   "installment_plan_periods": {
-    "order": "27",
+    "order": "28",
     "zh_name": "分期付款期數",
     "type": "INTEGER",
     "description": "信用卡分期期數",
@@ -216,7 +224,7 @@
     "note": ""
   },
   "payment_processing_fee_rate": {
-    "order": "28",
+    "order": "29",
     "zh_name": "金流與系統處理費率",
     "type": "STRING",
     "description": "金流服務費%數",
@@ -224,7 +232,7 @@
     "note": ""
   },
   "transaction_fee_rule_name": {
-    "order": "29",
+    "order": "30",
     "zh_name": "成交手續費規則名稱",
     "type": "STRING",
     "description": "手續費分則名稱",
@@ -232,7 +240,7 @@
     "note": ""
   },
   "product_name": {
-    "order": "30",
+    "order": "31",
     "zh_name": "商品名稱",
     "type": "STRING",
     "description": "主商品名稱",
@@ -240,7 +248,7 @@
     "note": ""
   },
   "product_variation": {
-    "order": "31",
+    "order": "32",
     "zh_name": "商品選項名稱",
     "type": "STRING",
     "description": "商品規格/選項",
@@ -248,7 +256,7 @@
     "note": ""
   },
   "product_original_price": {
-    "order": "32",
+    "order": "33",
     "zh_name": "商品原價",
     "type": "NUMERIC",
     "description": "單品原價",
@@ -256,7 +264,7 @@
     "note": ""
   },
   "product_campaign_price": {
-    "order": "33",
+    "order": "34",
     "zh_name": "商品活動價格",
     "type": "NUMERIC",
     "description": "促銷價",
@@ -264,7 +272,7 @@
     "note": ""
   },
   "product_sku_main": {
-    "order": "34",
+    "order": "35",
     "zh_name": "主商品貨號",
     "type": "STRING",
     "description": "主商品SKU",
@@ -272,7 +280,7 @@
     "note": "8~20碼英文+數字"
   },
   "product_sku_variation": {
-    "order": "35",
+    "order": "36",
     "zh_name": "商品選項貨號",
     "type": "STRING",
     "description": "選項SKU",
@@ -280,7 +288,7 @@
     "note": "8~20碼英文+數字"
   },
   "quantity": {
-    "order": "36",
+    "order": "37",
     "zh_name": "數量",
     "type": "INTEGER",
     "description": "商品數量",
@@ -288,7 +296,7 @@
     "note": ""
   },
   "return_quantity": {
-    "order": "37",
+    "order": "38",
     "zh_name": "退貨數量",
     "type": "STRING",
     "description": "退貨件數/可能有中文",
@@ -296,7 +304,7 @@
     "note": ""
   },
   "promo_bundle_indicator": {
-    "order": "38",
+    "order": "39",
     "zh_name": "促銷組合指標",
     "type": "STRING",
     "description": "促銷組合標記",
@@ -304,7 +312,7 @@
     "note": ""
   },
   "promo_bundle_discount_label": {
-    "order": "39",
+    "order": "40",
     "zh_name": "蝦皮促銷組合折扣:促銷組合標籤",
     "type": "STRING",
     "description": "促銷組合名稱",
@@ -312,7 +320,7 @@
     "note": ""
   },
   "recipient_address": {
-    "order": "40",
+    "order": "41",
     "zh_name": "收件地址",
     "type": "STRING",
     "description": "買家收貨地址",
@@ -320,7 +328,7 @@
     "note": "個資"
   },
   "recipient_phone": {
-    "order": "41",
+    "order": "42",
     "zh_name": "收件者電話\n(若您是自行配送請使用後方蝦皮專線和包裹查詢碼聯繫買家)",
     "type": "STRING",
     "description": "收件人電話",
@@ -328,7 +336,7 @@
     "note": "個資"
   },
   "shopee_hotline_and_tracking_code": {
-    "order": "42",
+    "order": "43",
     "zh_name": "蝦皮專線和包裹查詢碼 \n(請複製下方完整編號提供給您配合的物流商當做聯絡電話)",
     "type": "STRING",
     "description": "蝦皮查詢聯絡碼",
@@ -336,7 +344,7 @@
     "note": ""
   },
   "pickup_store_id": {
-    "order": "43",
+    "order": "44",
     "zh_name": "取件門市店號",
     "type": "STRING",
     "description": "超取門市編號",
@@ -344,7 +352,7 @@
     "note": ""
   },
   "recipient_city": {
-    "order": "44",
+    "order": "45",
     "zh_name": "城市",
     "type": "STRING",
     "description": "收件城市",
@@ -352,7 +360,7 @@
     "note": ""
   },
   "recipient_district": {
-    "order": "45",
+    "order": "46",
     "zh_name": "行政區",
     "type": "STRING",
     "description": "收件行政區",
@@ -360,7 +368,7 @@
     "note": ""
   },
   "recipient_postal_code": {
-    "order": "46",
+    "order": "47",
     "zh_name": "郵遞區號",
     "type": "STRING",
     "description": "收件郵遞區號",
@@ -368,7 +376,7 @@
     "note": ""
   },
   "recipient_name": {
-    "order": "47",
+    "order": "48",
     "zh_name": "收件者姓名",
     "type": "STRING",
     "description": "買家收貨人姓名",
@@ -376,7 +384,7 @@
     "note": "個資"
   },
   "shipping_method": {
-    "order": "48",
+    "order": "49",
     "zh_name": "寄送方式",
     "type": "STRING",
     "description": "買家選擇的寄送方式",
@@ -384,7 +392,7 @@
     "note": ""
   },
   "shipping_provider": {
-    "order": "49",
+    "order": "50",
     "zh_name": "出貨方式",
     "type": "STRING",
     "description": "物流/出貨方式",
@@ -392,7 +400,7 @@
     "note": ""
   },
   "days_to_ship": {
-    "order": "50",
+    "order": "51",
     "zh_name": "備貨時間",
     "type": "STRING",
     "description": "賣家備貨時長",
@@ -400,7 +408,7 @@
     "note": ""
   },
   "payment_method": {
-    "order": "51",
+    "order": "52",
     "zh_name": "付款方式",
     "type": "STRING",
     "description": "買家付款方式",
@@ -408,7 +416,7 @@
     "note": ""
   },
   "ship_by_date": {
-    "order": "52",
+    "order": "53",
     "zh_name": "最晚出貨日期",
     "type": "DATE",
     "description": "賣家應出貨最後期限",
@@ -416,7 +424,7 @@
     "note": ""
   },
   "tracking_number": {
-    "order": "53",
+    "order": "54",
     "zh_name": "包裹查詢號碼",
     "type": "STRING",
     "description": "物流查詢碼",
@@ -424,7 +432,7 @@
     "note": ""
   },
   "buyer_payment_timestamp": {
-    "order": "54",
+    "order": "55",
     "zh_name": "買家付款時間",
     "type": "TIMESTAMP",
     "description": "付款時間",
@@ -432,7 +440,7 @@
     "note": ""
   },
   "actual_shipping_timestamp": {
-    "order": "55",
+    "order": "56",
     "zh_name": "實際出貨時間",
     "type": "TIMESTAMP",
     "description": "物流實際寄出時間",
@@ -440,7 +448,7 @@
     "note": ""
   },
   "order_completion_timestamp": {
-    "order": "56",
+    "order": "57",
     "zh_name": "訂單完成時間",
     "type": "TIMESTAMP",
     "description": "訂單完成時間",
@@ -448,7 +456,7 @@
     "note": ""
   },
   "buyer_note": {
-    "order": "57",
+    "order": "58",
     "zh_name": "買家備註",
     "type": "STRING",
     "description": "買家下單備註",
@@ -456,7 +464,7 @@
     "note": ""
   },
   "seller_note": {
-    "order": "58",
+    "order": "59",
     "zh_name": "備註",
     "type": "STRING",
     "description": "賣家備註",

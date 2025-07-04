@@ -7,20 +7,21 @@ ec-data-pipeline
 │   │   └── .gitkeep
 │   └── reports
 │       └── .gitkeep
+├── check_mapping.py
 ├── config
 │   ├── ec_shops_universal_passwords.json
-│   ├── erp_db_connection.yaml
 │   ├── etmall_fields_mapping.json
 │   ├── mapping.xlsx
 │   ├── master_fields_mapping.json
 │   ├── momo_fields_mapping.json
 │   ├── pchome_fields_mapping.json
 │   ├── shopee_fields_mapping.json
-│   └── yahoo_fields_mapping.json
+│   ├── yahoo_fields_mapping.json
+│   └── ~$mapping.xlsx
 ├── data_processed
 │   ├── merged
 │   │   ├── .gitkeep
-│   │   └── a05_master_orders_cleaned.csv
+│   │   └── shopee_master_orders_cleaned.csv
 │   ├── reports
 │   │   ├── by_department
 │   │   │   └── .gitkeep
@@ -34,14 +35,19 @@ ec-data-pipeline
 │   ├── .gitkeep
 │   ├── etmall
 │   ├── momo
+│   │   ├── A1106_013072_EXL (1).xls
+│   │   ├── A1106_013072_EXL (2).xls
+│   │   ├── A1106_013072_EXL (3).xls
+│   │   ├── A1106_013072_EXL (4).xls
+│   │   └── A1106_013072_EXL.xls
 │   ├── pchome
 │   └── shopee
-│       └── A01_master_orders_cleaned_for_bigquery.csv
+│       ├── A01_master_orders_cleaned_for_bigquery.csv
+│       └── 有才寵物商店_yutsai_petmarket_Order.all.20250604_20250704.xlsx
 ├── docs
-│   ├── README.md
-│   └── data_dictionary.xlsx
+│   └── README.md
 ├── logs
-│   └── .gitkeep
+│   └── execution_log_20250704_175324.txt
 ├── requirements.txt
 ├── scripts
 │   ├── excel2mapping.py
