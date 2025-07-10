@@ -9,18 +9,18 @@ ec-data-pipeline
 │       └── .gitkeep
 ├── check_mapping.py
 ├── config
+│   ├── a1102_momo_fields_mapping.json
+│   ├── c1105_momo_fields_mapping.json
 │   ├── ec_shops_universal_passwords.json
 │   ├── etmall_fields_mapping.json
 │   ├── mapping.xlsx
 │   ├── master_fields_mapping.json
-│   ├── momo_fields_mapping.json
-│   ├── pchome_fields_mapping.json
-│   ├── shopee_fields_mapping.json
-│   ├── yahoo_fields_mapping.json
-│   └── ~$mapping.xlsx
+│   └── shopee_fields_mapping.json
 ├── data_processed
 │   ├── merged
 │   │   ├── .gitkeep
+│   │   ├── momo_accounting_orders_cleaned.csv
+│   │   ├── momo_shipping_orders_cleaned.csv
 │   │   └── shopee_master_orders_cleaned.csv
 │   ├── reports
 │   │   ├── by_department
@@ -35,17 +35,22 @@ ec-data-pipeline
 │   ├── .gitkeep
 │   ├── etmall
 │   ├── momo
-│   │   ├── A1106_013072_EXL (1).xls
-│   │   ├── A1106_013072_EXL (2).xls
-│   │   ├── A1106_013072_EXL (3).xls
-│   │   ├── A1106_013072_EXL (4).xls
-│   │   └── A1106_013072_EXL.xls
 │   ├── pchome
 │   └── shopee
 ├── docs
 │   └── README.md
 ├── logs
-│   └── execution_log_20250704_183830.txt
+│   ├── excel2mapping.log
+│   ├── execution_log_20250710_122704.txt
+│   ├── momo_accounting_cleaner_20250710_121247.log
+│   ├── momo_accounting_cleaner_20250710_121330.log
+│   ├── momo_batch_processor_20250710_121330.log
+│   ├── momo_batch_processor_20250710_122644.log
+│   ├── momo_batch_processor_20250710_122719.log
+│   ├── momo_shipping_cleaner_20250710_121224.log
+│   ├── momo_shipping_cleaner_20250710_121330.log
+│   ├── momo_shipping_cleaner_20250710_122644.log
+│   └── momo_shipping_cleaner_20250710_122719.log
 ├── requirements.txt
 ├── scripts
 │   ├── excel2mapping.py
@@ -53,17 +58,16 @@ ec-data-pipeline
 │   │   ├── main.py
 │   │   ├── remover.py
 │   │   └── utils.py
+│   ├── momo_accounting_cleaner.py
+│   ├── momo_batch_processor.py
+│   ├── momo_shipping_cleaner.py
 │   ├── shopee_csv_to_master_cleaner.py
 │   └── tree.py
 ├── temp
 │   ├── .gitkeep
 │   ├── etmall
 │   ├── momo
-│   │   ├── A1106_013072_EXL (1).csv
-│   │   ├── A1106_013072_EXL (2).csv
-│   │   ├── A1106_013072_EXL (3).csv
-│   │   ├── A1106_013072_EXL (4).csv
-│   │   └── A1106_013072_EXL.csv
+│   │   └── C1105_013072_20250710112727.csv
 │   ├── pchome
 │   └── shopee
 └── tree.txt
