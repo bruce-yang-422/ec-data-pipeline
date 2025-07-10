@@ -28,6 +28,7 @@
 ## 目錄結構
 - scripts/shopee_csv_to_master_cleaner.py：Shopee 訂單自動清洗、合併主腳本
 - scripts/momo_csv_to_master_cleaner.py：Momo 訂單自動清洗、合併主腳本
+- scripts/momo_orders_etl/：Momo 訂單 ETL 處理模組
 - scripts/excel_password_remover/：自動移除 Excel 密碼並轉存 CSV
 - config/shopee_fields_mapping.json：Shopee 欄位對應設定
 - config/momo_fields_mapping.json：Momo 欄位對應設定
@@ -40,6 +41,7 @@
 3. 執行對應平台處理腳本：
    - Shopee：`python scripts/shopee_csv_to_master_cleaner.py`
    - Momo：`python scripts/momo_csv_to_master_cleaner.py`
+   - Momo ETL：`python scripts/momo_orders_etl/momo_batch_processor.py`
 4. 合併結果於 data_processed/merged/對應平台_master_orders_cleaned.csv
 
 ## 更新日誌
@@ -56,7 +58,9 @@ ec-data-pipeline
 ├── data_processed/ # 處理後的資料（報表/合併/分群/彙總）
 ├── archive/      # 歷史歸檔（原始/報表）
 ├── scripts/      # 處理腳本（格式轉換、mapping工具、excel密碼移除）
-│   └── excel_password_remover/ # Excel 密碼移除與轉檔
+│   ├── excel_password_remover/ # Excel 密碼移除與轉檔
+│   ├── momo_orders_etl/        # Momo 訂單 ETL 處理模組
+│   └── shopee_csv_to_master_cleaner.py # Shopee 訂單處理
 ├── temp/         # 臨時檔案（解密/快取）
 ├── docs/         # 說明/數據字典
 ├── logs/         # 日誌
@@ -82,6 +86,7 @@ ec-data-pipeline
   - `shopee_csv_to_master_cleaner.py`: Shopee 訂單自動清洗、合併主腳本
   - `momo_csv_to_master_cleaner.py`: Momo 訂單自動清洗、合併主腳本
   - `excel_password_remover/`: Excel 密碼移除與自動轉 CSV
+  - `momo_orders_etl/`: Momo 訂單 ETL 處理模組（accounting_cleaner.py、momo_accounting_cleaner.py、momo_batch_processor.py）
 
 - `archive/`:  
   - 歷史原始資料、報表存放區，版本控管不易搞丟。

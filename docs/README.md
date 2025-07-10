@@ -1,5 +1,12 @@
 # 開發日誌與進度
 
+## 2025-07-10
+- 重構 Momo 腳本結構，建立 scripts/momo_orders_etl/ 資料夾。
+- 修正三個 Momo 腳本的路徑設定：accounting_cleaner.py、momo_accounting_cleaner.py、momo_batch_processor.py。
+- 調整 project_root 路徑從 parent 改為 parents[1]，確保腳本能正確找到專案根目錄。
+- 修復腳本無法正確訪問 config/、data_processed/、logs/ 等目錄的問題。
+- 更新 momo_batch_processor.py 中的腳本路徑引用，確保批次處理功能正常運作。
+
 ## 2025-07-04
 - 完成 momo_csv_to_master_cleaner.py 批次處理功能，支援 Momo 平台訂單資料自動清洗與合併。
 - 實作多平台統一處理架構，shopee_csv_to_master_cleaner.py 與 momo_csv_to_master_cleaner.py 共用相同處理邏輯。
