@@ -24,7 +24,7 @@ class MomoAccountingCleaner:
     def __init__(self):
         # 路徑設定
         self.script_dir = Path(__file__).parent
-        self.project_root = self.script_dir.parent
+        self.project_root = self.script_dir.parents[1]
         
         # 檔案路徑
         self.mapping_path = self.project_root / "config" / "c1105_momo_fields_mapping.json"

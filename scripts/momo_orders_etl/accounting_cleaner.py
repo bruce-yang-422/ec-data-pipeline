@@ -1,15 +1,14 @@
-# scripts/momo_shipping_cleaner.py
+# scripts/momo_accounting_cleaner.py
 # -*- coding: utf-8 -*-
 """
-MOMO 出貨管理訂單清理腳本 (A1102 系列)
+MOMO 帳務對帳訂單清理腳本 (C1105 系列)
 
 功能：
-- 批次讀取 temp/momo/A1102_2_*.csv 和 temp/momo/A1102_3_*.csv 檔案
-- 按 a1102_momo_fields_mapping.json 定義調整欄位與順序
-- 合併 A1102_2 和 A1102_3 資料 (A1102_3 優先)
-- 輸出到 data_processed/merged/momo_shipping_orders_cleaned.csv
+- 批次讀取 temp/momo/C1105_*.csv 檔案
+- 按 c1105_momo_fields_mapping.json 定義調整欄位與順序
+- 輸出到 data_processed/merged/momo_accounting_orders_cleaned.csv
 
-使用：python scripts/momo_shipping_cleaner.py
+使用：python scripts/momo_accounting_cleaner.py
 """
 
 import pandas as pd
@@ -21,17 +20,17 @@ from datetime import datetime
 from glob import glob
 from pathlib import Path
 
-class MomoShippingCleaner:
+class MomoAccountingCleaner:
     def __init__(self):
         # 路徑設定
         self.script_dir = Path(__file__).parent
-        self.project_root = self.script_dir.parent
+        self.project_root = self.script_dir.parents[1]
         
         # 檔案路徑
-        self.mapping_path = self.project_root / "config" / "a1102_momo_fields_mapping.json"
+        self.mapping_path = self.project_root / "config" / "c1105_momo_fields_mapping.json"
         self.source_dir = self.project_root / "temp" / "momo"
         self.output_dir = self.project_root / "data_processed" / "merged"
-        self.output_path = self.output_dir / "momo_shipping_orders_cleaned.csv"
+        self.output_path = self.output_dir / "momo_accounting_orders_cleaned.csv"
         self.logs_dir = self.project_root / "logs"
         
         # 確保目錄存在
@@ -44,7 +43,7 @@ class MomoShippingCleaner:
     def setup_logging(self):
         """設定日誌系統"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_filename = f"momo_shipping_cleaner_{timestamp}.log"
+        log_filename = f"momo_accounting_cleaner_{timestamp}.log"
         log_path = self.logs_dir / log_filename
         
         logging.basicConfig(
@@ -57,10 +56,10 @@ class MomoShippingCleaner:
         )
         
         self.logger = logging.getLogger(__name__)
-        self.logger.info("=== MOMO 出貨管理訂單清理開始 ===")
+        self.logger.info("=== MOMO 帳務對帳訂單清理開始 ===")
         
     def get_mapping(self):
-        """讀取 A1102 mapping 設定並根據 'order' 欄位排序"""
+        """讀取 C1105 mapping 設定並根據 'order' 欄位排序"""
         try:
             with open(self.mapping_path, "r", encoding="utf-8") as f:
                 mapping = json.load(f)
@@ -76,25 +75,21 @@ class MomoShippingCleaner:
             raise
     
     def read_csv_files(self, mapping):
-        """讀取 A1102_2 和 A1102_3 CSV 檔案"""
-        # 尋找 A1102_2 和 A1102_3 開頭的檔案
-        a1102_2_files = glob(str(self.source_dir / "A1102_2_*.csv"))
-        a1102_3_files = glob(str(self.source_dir / "A1102_3_*.csv"))
+        """讀取 C1105 CSV 檔案"""
+        # 尋找 C1105 開頭的檔案
+        c1105_files = glob(str(self.source_dir / "C1105_*.csv"))
         
-        all_files = a1102_2_files + a1102_3_files
-        
-        if not all_files:
-            self.logger.warning(f"在 {self.source_dir} 目錄下沒有找到 A1102 CSV 檔案")
+        if not c1105_files:
+            self.logger.warning(f"在 {self.source_dir} 目錄下沒有找到 C1105 CSV 檔案")
             return pd.DataFrame()
         
-        self.logger.info(f"找到 {len(a1102_2_files)} 個 A1102_2 檔案")
-        self.logger.info(f"找到 {len(a1102_3_files)} 個 A1102_3 檔案")
+        self.logger.info(f"找到 {len(c1105_files)} 個 C1105 檔案")
         
         # 建立中文到英文的欄位對應
         zh_to_en = {v["zh_name"]: k for k, v in mapping.items()}
         
         dfs = []
-        for file_path in all_files:
+        for file_path in c1105_files:
             try:
                 df = pd.read_csv(file_path, dtype=str, encoding='utf-8-sig').fillna("")
                 
@@ -115,10 +110,7 @@ class MomoShippingCleaner:
                 
                 # 標記資料來源
                 file_name = Path(file_path).name
-                if file_name.startswith("A1102_2_"):
-                    df['data_source'] = 'A1102_2'
-                elif file_name.startswith("A1102_3_"):
-                    df['data_source'] = 'A1102_3'
+                df['data_source'] = 'C1105'
                 
                 dfs.append(df)
                 self.logger.info(f"讀取成功：{file_name} ({len(df)} 筆)")
@@ -135,63 +127,45 @@ class MomoShippingCleaner:
         
         return combined_df
     
-    def merge_a1102_data(self, df):
-        """合併 A1102_2 和 A1102_3 資料，A1102_3 優先"""
-        if 'data_source' not in df.columns or 'order_sn' not in df.columns:
-            return df
-            
-        # 分離兩種資料來源
-        a1102_2_df = df[df['data_source'] == 'A1102_2'].copy()
-        a1102_3_df = df[df['data_source'] == 'A1102_3'].copy()
-        
-        if a1102_3_df.empty:
-            self.logger.info("只有 A1102_2 資料，直接使用")
-            return a1102_2_df
-        
-        if a1102_2_df.empty:
-            self.logger.info("只有 A1102_3 資料，直接使用")
-            return a1102_3_df
-        
-        # A1102_3 為主，A1102_2 補充
-        self.logger.info("合併 A1102_2 和 A1102_3 資料...")
-        
-        # 以 A1102_3 為基礎
-        merged_df = a1102_3_df.copy()
-        
-        # 找出 A1102_3 中沒有的訂單編號
-        a1102_3_orders = set(a1102_3_df['order_sn'].values)
-        a1102_2_unique = a1102_2_df[~a1102_2_df['order_sn'].isin(a1102_3_orders)]
-        
-        if not a1102_2_unique.empty:
-            merged_df = pd.concat([merged_df, a1102_2_unique], ignore_index=True)
-            self.logger.info(f"從 A1102_2 補充了 {len(a1102_2_unique)} 筆獨有資料")
-        
-        self.logger.info(f"合併後共 {len(merged_df)} 筆資料")
-        return merged_df
-    
     def process_data(self, df, mapping, columns):
         """根據 mapping 處理資料"""
         self.logger.info("開始資料處理...")
-        
-        # 合併 A1102 資料
-        df = self.merge_a1102_data(df)
         
         # 添加固定欄位
         df['platform'] = 'momo'
         df['processing_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # 解析訂單日期
-        def parse_order_date(order_sn):
-            if isinstance(order_sn, str) and len(order_sn) >= 6:
-                date_part = order_sn[:6]
-                if date_part.isdigit():
-                    y, m, d = date_part[:2], date_part[2:4], date_part[4:6]
-                    year = int(y) + 2000
-                    return f"{year:04d}-{int(m):02d}-{int(d):02d}"
-            return ""
-        
-        if 'order_sn' in df.columns:
-            df['order_date'] = df['order_sn'].apply(parse_order_date)
+        # 處理訂單日期 (C1105 有原始的訂單成立日)
+        if 'order_date' in df.columns:
+            # 標準化日期格式
+            def standardize_date(date_str):
+                if not isinstance(date_str, str) or not date_str.strip():
+                    return ""
+                try:
+                    # 嘗試解析 YYYY/MM/DD 格式
+                    if '/' in date_str:
+                        parts = date_str.split('/')
+                        if len(parts) == 3:
+                            year, month, day = parts
+                            return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+                    return date_str
+                except:
+                    return ""
+            
+            df['order_date'] = df['order_date'].apply(standardize_date)
+        else:
+            # 如果沒有訂單日期欄位，從訂單編號解析
+            def parse_order_date(order_sn):
+                if isinstance(order_sn, str) and len(order_sn) >= 6:
+                    date_part = order_sn[:6]
+                    if date_part.isdigit():
+                        y, m, d = date_part[:2], date_part[2:4], date_part[4:6]
+                        year = int(y) + 2000
+                        return f"{year:04d}-{int(m):02d}-{int(d):02d}"
+                return ""
+            
+            if 'order_sn' in df.columns:
+                df['order_date'] = df['order_sn'].apply(parse_order_date)
         
         # 解析訂單編號組成 (保持 00X 格式)
         def parse_order_sn_components(order_sn):
@@ -220,6 +194,32 @@ class MomoShippingCleaner:
         # 生成合併鍵
         if 'order_sn' in df.columns:
             df['key_for_merge'] = 'momo_' + df['order_sn'].astype(str)
+        
+        # 處理日期時間欄位
+        datetime_fields = ['order_transfer_date', 'actual_shipping_date']
+        for field in datetime_fields:
+            if field in df.columns:
+                def standardize_datetime(dt_str):
+                    if not isinstance(dt_str, str) or not dt_str.strip():
+                        return ""
+                    try:
+                        # 處理 YYYY/MM/DD 格式
+                        if '/' in dt_str:
+                            date_part = dt_str.split(' ')[0]  # 取日期部分
+                            parts = date_part.split('/')
+                            if len(parts) == 3:
+                                year, month, day = parts
+                                formatted_date = f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+                                if ' ' in dt_str:  # 有時間部分
+                                    time_part = dt_str.split(' ')[1]
+                                    return f"{formatted_date} {time_part}"
+                                else:
+                                    return formatted_date
+                        return dt_str
+                    except:
+                        return ""
+                
+                df[field] = df[field].apply(standardize_datetime)
         
         # 確保所有欄位存在並設定正確的資料類型 (BigQuery 相容)
         for col in columns:
@@ -301,12 +301,11 @@ class MomoShippingCleaner:
     
     def cleanup_temp_files(self):
         """清理暫存檔案"""
-        a1102_files = glob(str(self.source_dir / "A1102_2_*.csv")) + \
-                     glob(str(self.source_dir / "A1102_3_*.csv"))
+        c1105_files = glob(str(self.source_dir / "C1105_*.csv"))
         
-        if a1102_files:
+        if c1105_files:
             self.logger.info("正在清理暫存檔案...")
-            for file_path in a1102_files:
+            for file_path in c1105_files:
                 try:
                     os.unlink(file_path)
                     self.logger.info(f"已刪除：{Path(file_path).name}")
@@ -316,7 +315,7 @@ class MomoShippingCleaner:
     def run(self):
         """執行主程式"""
         try:
-            self.logger.info("MOMO 出貨管理訂單清理腳本啟動")
+            self.logger.info("MOMO 帳務對帳訂單清理腳本啟動")
             
             # 載入 mapping
             mapping, columns = self.get_mapping()
@@ -336,7 +335,7 @@ class MomoShippingCleaner:
             # 清理暫存檔案
             self.cleanup_temp_files()
             
-            self.logger.info("=== 出貨管理訂單清理完成 ===")
+            self.logger.info("=== 帳務對帳訂單清理完成 ===")
             
         except Exception as e:
             self.logger.error(f"程式執行失敗：{e}")
@@ -346,7 +345,7 @@ class MomoShippingCleaner:
 
 def main():
     """主函式"""
-    cleaner = MomoShippingCleaner()
+    cleaner = MomoAccountingCleaner()
     cleaner.run()
 
 if __name__ == "__main__":

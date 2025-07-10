@@ -24,7 +24,7 @@ class MomoBatchProcessor:
     def __init__(self):
         # 路徑設定
         self.script_dir = Path(__file__).parent
-        self.project_root = self.script_dir.parent
+        self.project_root = self.script_dir.parents[1]
         self.logs_dir = self.project_root / "logs"
         
         # 確保目錄存在
@@ -34,7 +34,7 @@ class MomoBatchProcessor:
         self.setup_logging()
         
         # 腳本路徑
-        self.shipping_script = self.script_dir / "momo_shipping_cleaner.py"
+        self.shipping_script = self.script_dir / "accounting_cleaner.py"
         self.accounting_script = self.script_dir / "momo_accounting_cleaner.py"
         
     def setup_logging(self):
