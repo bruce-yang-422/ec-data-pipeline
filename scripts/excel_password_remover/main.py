@@ -14,6 +14,17 @@
     3. 轉換所有 Excel 檔案為 CSV
     4. 清理 CSV 資料中的空格和換行符號
     5. 刪除 Excel 檔案，只保留 CSV
+
+輸入：
+- data_raw/ 目錄下的各平台檔案
+- config/ec_shops_universal_passwords.json
+
+輸出：
+- temp/ 目錄下的處理後檔案
+- logs/execution_log_*.txt
+
+Authors: 楊翔志 & AI Collective
+Studio: tranquility-base
 """
 
 from pathlib import Path

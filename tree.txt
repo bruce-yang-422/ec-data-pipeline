@@ -1,73 +1,114 @@
-ec-data-pipeline
-├── .gitattributes
-├── .gitignore
-├── README.md
-├── archive
-│   ├── raw
-│   │   └── .gitkeep
-│   └── reports
-│       └── .gitkeep
-├── check_mapping.py
-├── config
-│   ├── a1102_momo_fields_mapping.json
-│   ├── c1105_momo_fields_mapping.json
-│   ├── ec_shops_universal_passwords.json
-│   ├── etmall_fields_mapping.json
-│   ├── mapping.xlsx
-│   ├── master_fields_mapping.json
-│   └── shopee_fields_mapping.json
-├── data_processed
-│   ├── merged
-│   │   ├── .gitkeep
-│   │   ├── momo_accounting_orders_cleaned.csv
-│   │   ├── momo_shipping_orders_cleaned.csv
-│   │   └── shopee_master_orders_cleaned.csv
-│   ├── reports
-│   │   ├── by_department
-│   │   │   └── .gitkeep
-│   │   ├── by_platform
-│   │   │   └── .gitkeep
-│   │   └── by_sku
-│   │       └── .gitkeep
-│   └── summary
-│       └── .gitkeep
-├── data_raw
-│   ├── .gitkeep
-│   ├── etmall
-│   ├── momo
-│   ├── pchome
-│   └── shopee
-├── docs
-│   └── README.md
-├── logs
-│   ├── excel2mapping.log
-│   ├── execution_log_20250710_122704.txt
-│   ├── momo_accounting_cleaner_20250710_121247.log
-│   ├── momo_accounting_cleaner_20250710_121330.log
-│   ├── momo_batch_processor_20250710_121330.log
-│   ├── momo_batch_processor_20250710_122644.log
-│   ├── momo_batch_processor_20250710_122719.log
-│   ├── momo_shipping_cleaner_20250710_121224.log
-│   ├── momo_shipping_cleaner_20250710_121330.log
-│   ├── momo_shipping_cleaner_20250710_122644.log
-│   └── momo_shipping_cleaner_20250710_122719.log
-├── requirements.txt
-├── scripts
-│   ├── excel2mapping.py
-│   ├── excel_password_remover
-│   │   ├── main.py
-│   │   ├── remover.py
-│   │   └── utils.py
-│   ├── momo_accounting_cleaner.py
-│   ├── momo_batch_processor.py
-│   ├── momo_shipping_cleaner.py
-│   ├── shopee_csv_to_master_cleaner.py
-│   └── tree.py
-├── temp
-│   ├── .gitkeep
-│   ├── etmall
-│   ├── momo
-│   │   └── C1105_013072_20250710112727.csv
-│   ├── pchome
-│   └── shopee
-└── tree.txt
+📁 ec-data-pipeline
+├── 📁 .venv
+├── 📂 archive
+│   ├── 📂 raw
+│   └── 📂 reports
+├── 📂 config
+│   ├── 📁 env
+│   ├── 📋 a1102_momo_fields_mapping.json
+│   ├── 📋 bigquery_uploader_key.json
+│   ├── 📋 c1105_momo_fields_mapping.json
+│   ├── 📋 ec_shops_universal_passwords.json
+│   ├── 📋 etmall_fields_mapping.json
+│   ├── 📈 mapping.xlsx
+│   ├── 📋 master_fields_mapping.json
+│   ├── 📋 pchome_fields_mapping.json
+│   ├── 📋 shopee_fields_mapping.json
+│   └── 📋 yahoo_fields_mapping.json
+├── 📂 data_processed
+│   ├── 📂 merged
+│   │   ├── 📊 ... 還有 3 個 .csv 檔案
+│   │   ├── 📊 etmall_orders_cleaned.csv
+│   │   ├── 📊 etmall_orders_cleaned_bq_upload.csv
+│   │   └── 📊 momo_accounting_orders_cleaned.csv
+│   ├── 📂 reports
+│   │   ├── 📂 by_department
+│   │   ├── 📂 by_platform
+│   │   └── 📂 by_sku
+│   └── 📂 summary
+├── 📂 data_raw
+│   ├── 📂 Yahoo
+│   │   ├── 📊 ... 還有 2 個 .csv 檔案
+│   │   ├── 📊 delivery (1).csv
+│   │   ├── 📊 delivery.csv
+│   │   ├── 📊 retgood.csv
+│   │   ├── 📈 雅虎購物中心_6月_delivery.xls
+│   │   └── 📈 雅虎購物中心_6月_torders.xls
+│   ├── 📂 etmall
+│   │   ├── 📊 東森_訂單銷售報表20250718122504.csv
+│   │   ├── 📈 東森_訂單銷售報表20250718122504.xlsx
+│   │   ├── 📊 訂單銷售報表20250721094645.csv
+│   │   ├── 📈 訂單銷售報表20250721094645.xlsx
+│   │   ├── 📊 訂單銷售報表20250723091408.csv
+│   │   └── 📈 訂單銷售報表20250723091408.xlsx
+│   ├── 📂 momo
+│   │   ├── 📊 ... 還有 11 個 .xls 檔案
+│   │   ├── 📈 A1102_2_1_013072_20250713185113.xls
+│   │   ├── 📈 A1102_2_1_013072_20250714083847.xls
+│   │   ├── 📈 A1102_2_1_013072_20250715083537.xls
+│   │   └── 📈 C1105_013072_20250721104400.xlsx
+│   ├── 📂 pchome
+│   │   ├── 📊 ... 還有 3 個 .csv 檔案
+│   │   ├── 📊 PCHOME_5月_2025072117_03064857E5309835C8D3.csv
+│   │   ├── 📊 PCHOME_5月退貨2025072209_DBFF044DF62E4E744EC5.csv
+│   │   └── 📊 PCHOME_6月_2025072117_1A07090BEF294AF914FC.csv
+│   └── 📂 shopee
+├── 📂 docs
+│   └── 📖 README.md
+├── 📂 logs
+│   ├── 📋 excel2mapping.log
+│   ├── 📋 pchome_cleaner.log
+│   └── 📋 pchome_return_xray.log
+├── 📂 scripts
+│   ├── 📂 bigquery_uploader
+│   │   ├── 🐍 bigquery_uploader.py
+│   │   ├── 🐍 bigquery_utils.py
+│   │   ├── 🐍 bq_schemas.py
+│   │   └── 🐍 etmall_orders_bq_upload.py
+│   ├── 📂 etmall_orders_etl
+│   │   ├── 🐍 etmall_batch_processor.py
+│   │   ├── 🐍 etmall_orders_cleaner.py
+│   │   ├── 🐍 etmall_orders_compare_shipping_date.py
+│   │   └── 🐍 etmall_xlsx_to_csv.py
+│   ├── 📂 excel_password_remover
+│   │   ├── 🐍 main.py
+│   │   ├── 🐍 remover.py
+│   │   └── 🐍 utils.py
+│   ├── 📂 momo_orders_etl
+│   │   ├── 🐍 momo_accounting_cleaner.py
+│   │   ├── 🐍 momo_batch_processor.py
+│   │   └── 🐍 momo_shipping_cleaner.py
+│   ├── 📂 pchome_orders_etl
+│   │   ├── 📖 README.md
+│   │   ├── 🐍 pchome_cleaner.py
+│   │   ├── 🐍 pchome_orders_merger.py
+│   │   ├── 🐍 pchome_return_cleaner.py
+│   │   └── 🐍 pchome_xray.py
+│   ├── 📂 yahoo_orders_etl
+│   ├── 🐍 TreeMaker.py
+│   ├── 🐍 clear_logs.py
+│   ├── 🐍 excel2mapping.py
+│   ├── 🐍 momo_csv_to_master_cleaner.py
+│   └── 🐍 shopee_csv_to_master_cleaner.py
+├── 📂 temp
+│   ├── 📂 Yahoo
+│   │   ├── 📈 雅虎購物中心_6月_delivery.xls
+│   │   ├── 📊 雅虎購物中心_6月_spstorders.csv
+│   │   └── 📈 雅虎購物中心_6月_torders.xls
+│   ├── 📂 etmall
+│   │   ├── 📊 東森_訂單銷售報表20250718122504.csv
+│   │   └── 📊 訂單銷售報表20250721094645.csv
+│   ├── 📂 momo
+│   │   ├── 📊 ... 還有 11 個 .csv 檔案
+│   │   ├── 📊 A1102_2_1_013072_20250713185113.csv
+│   │   ├── 📊 A1102_2_1_013072_20250714083847.csv
+│   │   └── 📊 A1102_2_1_013072_20250715083537.csv
+│   ├── 📂 pchome
+│   │   ├── 📊 ... 還有 3 個 .csv 檔案
+│   │   ├── 📊 pchome_20250501_20250531.csv
+│   │   ├── 📊 pchome_20250601_20250630.csv
+│   │   └── 📊 pchome_20250701_20250721.csv
+│   └── 📂 shopee
+├── 📖 README.md
+├── 📋 requirements.txt
+└── 📄 tree.txt

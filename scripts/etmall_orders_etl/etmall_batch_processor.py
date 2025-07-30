@@ -1,24 +1,26 @@
-# scripts/momo_orders_etl/momo_batch_processor.py
+# scripts/etmall_orders_etl/etmall_batch_processor.py
 # -*- coding: utf-8 -*-
 """
-MOMO 批次處理主腳本
+東森購物批次處理主腳本
 
 功能：
-- 統一執行 MOMO 的兩個清理腳本
+- 統一執行東森購物的資料處理流程
+- 先執行 xlsx 轉換，再執行資料清洗
 - 使用 subprocess 執行子腳本，避免導入問題
-- 提供選擇性執行選項
+- 提供完整的資料處理流程
 
 使用：
-- python scripts/momo_orders_etl/momo_batch_processor.py          # 執行全部
-- python scripts/momo_orders_etl/momo_batch_processor.py shipping # 只執行出貨管理
-- python scripts/momo_orders_etl/momo_batch_processor.py accounting # 只執行帳務對帳
+- python scripts/etmall_orders_etl/etmall_batch_processor.py          # 執行全部
+- python scripts/etmall_orders_etl/etmall_batch_processor.py convert  # 只執行 xlsx 轉換
+- python scripts/etmall_orders_etl/etmall_batch_processor.py clean    # 只執行資料清洗
 
 輸入：
-- 自動調用 momo_shipping_cleaner.py 和 momo_accounting_cleaner.py
+- data_raw/etmall/*.xlsx 檔案
+- data_raw/etmall/*.csv 檔案
 
 輸出：
-- 執行日誌檔案
-- 清理後的 CSV 檔案
+- data_raw/etmall/*.csv 檔案（xlsx 轉換後）
+- data_processed/merged/etmall_orders_cleaned.csv（清洗後）
 
 Authors: 楊翔志 & AI Collective
 Studio: tranquility-base
@@ -30,9 +32,9 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-class MomoBatchProcessor:
+class EtmallBatchProcessor:
     def __init__(self):
-        # 路徑設定 - 腳本在 scripts/momo_orders_etl/ 目錄下
+        # 路徑設定 - 腳本在 scripts/etmall_orders_etl/ 目錄下
         self.script_dir = Path(__file__).parent
         self.project_root = self.script_dir.parents[1]  # 向上兩層到達專案根目錄
         self.logs_dir = self.project_root / "logs"
@@ -44,13 +46,13 @@ class MomoBatchProcessor:
         self.setup_logging()
         
         # 腳本路徑 - 同目錄下的其他腳本
-        self.shipping_script = self.script_dir / "momo_shipping_cleaner.py"
-        self.accounting_script = self.script_dir / "momo_accounting_cleaner.py"
+        self.convert_script = self.script_dir / "etmall_xlsx_to_csv.py"
+        self.clean_script = self.script_dir / "etmall_orders_cleaner.py"
         
     def setup_logging(self):
         """設定批次處理日誌"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_filename = f"momo_batch_processor_{timestamp}.log"
+        log_filename = f"etmall_batch_processor_{timestamp}.log"
         log_path = self.logs_dir / log_filename
         
         # 設定檔案 handler
@@ -68,7 +70,7 @@ class MomoBatchProcessor:
         )
         
         self.logger = logging.getLogger(__name__)
-        self.logger.info("=== MOMO 批次處理開始 ===")
+        self.logger.info("=== 東森購物批次處理開始 ===")
         self.logger.info(f"專案根目錄：{self.project_root}")
         self.logger.info(f"腳本目錄：{self.script_dir}")
         
@@ -163,38 +165,38 @@ class MomoBatchProcessor:
             self.logger.error(f"執行 {script_name} 時發生錯誤：{e}")
             return False
     
-    def run_shipping_cleaner(self):
-        """執行出貨管理清理"""
-        return self.run_script(self.shipping_script, "出貨管理清理 (A1102 系列)")
+    def run_xlsx_converter(self):
+        """執行 xlsx 轉換"""
+        return self.run_script(self.convert_script, "xlsx 轉換器")
     
-    def run_accounting_cleaner(self):
-        """執行帳務對帳清理"""
-        return self.run_script(self.accounting_script, "帳務對帳清理 (C1105 系列)")
+    def run_orders_cleaner(self):
+        """執行訂單資料清洗"""
+        return self.run_script(self.clean_script, "訂單資料清洗器")
     
     def run_all(self):
-        """執行所有清理作業"""
-        self.logger.info("執行完整的 MOMO 資料清理流程")
+        """執行所有處理作業"""
+        self.logger.info("執行完整的東森購物資料處理流程")
         
         results = {
-            'shipping': False,
-            'accounting': False
+            'convert': False,
+            'clean': False
         }
         
-        # 執行出貨管理清理
-        self.logger.info("\n--- 開始出貨管理清理 ---")
-        results['shipping'] = self.run_shipping_cleaner()
+        # 執行 xlsx 轉換
+        self.logger.info("\n--- 開始 xlsx 轉換 ---")
+        results['convert'] = self.run_xlsx_converter()
         
-        # 執行帳務對帳清理
-        self.logger.info("\n--- 開始帳務對帳清理 ---")
-        results['accounting'] = self.run_accounting_cleaner()
+        # 執行訂單資料清洗
+        self.logger.info("\n--- 開始訂單資料清洗 ---")
+        results['clean'] = self.run_orders_cleaner()
         
         # 總結報告
         self.logger.info("\n=== 批次處理總結 ===")
         success_count = sum(results.values())
         total_count = len(results)
         
-        self.logger.info(f"出貨管理清理：{'成功' if results['shipping'] else '失敗'}")
-        self.logger.info(f"帳務對帳清理：{'成功' if results['accounting'] else '失敗'}")
+        self.logger.info(f"xlsx 轉換：{'成功' if results['convert'] else '失敗'}")
+        self.logger.info(f"訂單資料清洗：{'成功' if results['clean'] else '失敗'}")
         self.logger.info(f"整體結果：{success_count}/{total_count} 項作業成功")
         
         return results
@@ -206,27 +208,21 @@ class MomoBatchProcessor:
         issues = []
         
         # 檢查腳本檔案
-        if not self.shipping_script.exists():
-            issues.append(f"找不到出貨管理腳本：{self.shipping_script}")
+        if not self.convert_script.exists():
+            issues.append(f"找不到 xlsx 轉換腳本：{self.convert_script}")
         
-        if not self.accounting_script.exists():
-            issues.append(f"找不到帳務對帳腳本：{self.accounting_script}")
+        if not self.clean_script.exists():
+            issues.append(f"找不到訂單清洗腳本：{self.clean_script}")
         
-        # 檢查配置檔案
-        config_dir = self.project_root / "config"
-        shipping_config = config_dir / "a1102_momo_fields_mapping.json"
-        accounting_config = config_dir / "c1105_momo_fields_mapping.json"
+        # 檢查必要目錄
+        data_raw_dir = self.project_root / "data_raw" / "etmall"
+        if not data_raw_dir.exists():
+            issues.append(f"找不到資料目錄：{data_raw_dir}")
         
-        if not shipping_config.exists():
-            issues.append(f"找不到出貨管理配置：{shipping_config}")
-        
-        if not accounting_config.exists():
-            issues.append(f"找不到帳務對帳配置：{accounting_config}")
-        
-        # 檢查目錄
-        temp_dir = self.project_root / "temp" / "momo"
-        if not temp_dir.exists():
-            issues.append(f"找不到暫存目錄：{temp_dir}")
+        # 檢查 mapping 檔案
+        mapping_file = self.project_root / "config" / "etmall_fields_mapping.json"
+        if not mapping_file.exists():
+            issues.append(f"找不到 mapping 檔案：{mapping_file}")
         
         if issues:
             self.logger.error("發現以下問題：")
@@ -234,127 +230,72 @@ class MomoBatchProcessor:
                 self.logger.error(f"  - {issue}")
             return False
         
-        self.logger.info("前提條件檢查通過")
+        self.logger.info("✅ 所有前提條件檢查通過")
         return True
     
     def run(self, mode='all'):
-        """根據模式執行相應的清理作業"""
-        try:
-            # 檢查前提條件
-            if not self.check_prerequisites():
-                self.logger.error("前提條件檢查失敗，程式終止")
-                return False
-            
-            if mode == 'shipping':
-                self.logger.info("模式：僅執行出貨管理清理")
-                success = self.run_shipping_cleaner()
-                if success:
-                    self.logger.info("出貨管理清理成功完成")
-                else:
-                    self.logger.error("出貨管理清理失敗")
-                return success
-                
-            elif mode == 'accounting':
-                self.logger.info("模式：僅執行帳務對帳清理")
-                success = self.run_accounting_cleaner()
-                if success:
-                    self.logger.info("帳務對帳清理成功完成")
-                else:
-                    self.logger.error("帳務對帳清理失敗")
-                return success
-                
-            elif mode == 'all':
-                self.logger.info("模式：執行完整清理流程")
-                results = self.run_all()
-                success = all(results.values())
-                if success:
-                    self.logger.info("所有清理作業成功完成")
-                else:
-                    failed_tasks = [task for task, result in results.items() if not result]
-                    self.logger.warning(f"部分作業失敗：{failed_tasks}")
-                return success
-                
-            else:
-                self.logger.error(f"未知的執行模式：{mode}")
-                self.logger.info("可用模式：all, shipping, accounting")
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"批次處理執行失敗：{e}")
+        """執行批次處理"""
+        if not self.check_prerequisites():
+            self.logger.error("前提條件檢查失敗，停止執行")
             return False
-        finally:
-            self.logger.info("=== MOMO 批次處理結束 ===")
+        
+        if mode == 'all':
+            return self.run_all()
+        elif mode == 'convert':
+            self.logger.info("只執行 xlsx 轉換")
+            return self.run_xlsx_converter()
+        elif mode == 'clean':
+            self.logger.info("只執行訂單資料清洗")
+            return self.run_orders_cleaner()
+        else:
+            self.logger.error(f"未知的執行模式：{mode}")
+            return False
 
 def show_usage():
     """顯示使用說明"""
     print("""
-MOMO 批次處理腳本使用說明：
+東森購物批次處理器使用說明：
 
 用法：
-  python scripts/momo_orders_etl/momo_batch_processor.py [模式]
+  python scripts/etmall_orders_etl/etmall_batch_processor.py [模式]
 
 模式選項：
-  all         執行完整清理流程 (預設)
-              - 出貨管理清理 (A1102_2, A1102_3)
-              - 帳務對帳清理 (C1105)
-              
-  shipping    僅執行出貨管理清理
-              - 處理 A1102_2_*.csv 和 A1102_3_*.csv
-              - 輸出：momo_shipping_orders_cleaned.csv
-              
-  accounting  僅執行帳務對帳清理
-              - 處理 C1105_*.csv
-              - 輸出：momo_accounting_orders_cleaned.csv
+  all      - 執行完整流程（xlsx 轉換 + 資料清洗）
+  convert  - 只執行 xlsx 轉換
+  clean    - 只執行資料清洗
 
 範例：
-  python scripts/momo_orders_etl/momo_batch_processor.py
-  python scripts/momo_orders_etl/momo_batch_processor.py all
-  python scripts/momo_orders_etl/momo_batch_processor.py shipping
-  python scripts/momo_orders_etl/momo_batch_processor.py accounting
+  python scripts/etmall_orders_etl/etmall_batch_processor.py          # 執行全部
+  python scripts/etmall_orders_etl/etmall_batch_processor.py convert  # 只轉換 xlsx
+  python scripts/etmall_orders_etl/etmall_batch_processor.py clean    # 只清洗資料
 
-檔案結構：
-  ec-data-pipeline/
-  ├── scripts/momo_orders_etl/
-  │   ├── momo_batch_processor.py
-  │   ├── momo_shipping_cleaner.py
-  │   └── momo_accounting_cleaner.py
-  ├── config/
-  │   ├── a1102_momo_fields_mapping.json
-  │   └── c1105_momo_fields_mapping.json
-  ├── temp/momo/
-  └── data_processed/merged/
+流程說明：
+  1. xlsx 轉換：將 data_raw/etmall/*.xlsx 轉換為 *.csv
+  2. 資料清洗：讀取 CSV 檔案，按 mapping 清洗並輸出到 data_processed/merged/
 """)
 
 def main():
-    """主函式"""
-    # 設定控制台編碼為 UTF-8
-    import os
-    os.environ['PYTHONIOENCODING'] = 'utf-8'
-    
-    # 解析命令列參數
+    """主程式入口點"""
     if len(sys.argv) > 1:
         mode = sys.argv[1].lower()
-        
-        # 檢查是否為幫助請求
-        if mode in ['help', '-h', '--help', '?']:
+        if mode in ['-h', '--help', 'help']:
             show_usage()
             return
-        
-        # 驗證模式
-        if mode not in ['all', 'shipping', 'accounting']:
-            print(f"❌ 錯誤：未知的模式 '{mode}'")
+        elif mode not in ['all', 'convert', 'clean']:
+            print(f"錯誤：未知的執行模式 '{mode}'")
             show_usage()
             return
     else:
-        mode = 'all'  # 預設模式
+        mode = 'all'
     
-    # 執行批次處理
-    processor = MomoBatchProcessor()
+    processor = EtmallBatchProcessor()
     success = processor.run(mode)
     
-    # 設定退出碼
-    exit_code = 0 if success else 1
-    sys.exit(exit_code)
+    if success:
+        print("✅ 批次處理完成")
+    else:
+        print("❌ 批次處理失敗")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    main() 

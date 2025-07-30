@@ -1,4 +1,4 @@
-# scripts/momo_accounting_cleaner.py
+# scripts/momo_orders_etl/momo_accounting_cleaner.py
 # -*- coding: utf-8 -*-
 """
 MOMO 帳務對帳訂單清理腳本 (C1105 系列)
@@ -8,7 +8,17 @@ MOMO 帳務對帳訂單清理腳本 (C1105 系列)
 - 按 c1105_momo_fields_mapping.json 定義調整欄位與順序
 - 輸出到 data_processed/merged/momo_accounting_orders_cleaned.csv
 
-使用：python scripts/momo_accounting_cleaner.py
+使用：python scripts/momo_orders_etl/momo_accounting_cleaner.py
+
+輸入：
+- temp/momo/C1105_*.csv, C1105_*.xls, C1105_*.xlsx 檔案
+- config/c1105_momo_fields_mapping.json
+
+輸出：
+- data_processed/merged/momo_accounting_orders_cleaned.csv
+
+Authors: 楊翔志 & AI Collective
+Studio: tranquility-base
 """
 
 import pandas as pd
@@ -22,9 +32,9 @@ from pathlib import Path
 
 class MomoAccountingCleaner:
     def __init__(self):
-        # 路徑設定
+        # 路徑設定 - 腳本在 scripts/momo_orders_etl/ 目錄下
         self.script_dir = Path(__file__).parent
-        self.project_root = self.script_dir.parents[1]
+        self.project_root = self.script_dir.parents[1]  # 向上兩層到達專案根目錄
         
         # 檔案路徑
         self.mapping_path = self.project_root / "config" / "c1105_momo_fields_mapping.json"
@@ -46,13 +56,18 @@ class MomoAccountingCleaner:
         log_filename = f"momo_accounting_cleaner_{timestamp}.log"
         log_path = self.logs_dir / log_filename
         
+        # 設定檔案 handler
+        file_handler = logging.FileHandler(log_path, encoding='utf-8')
+        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        
+        # 設定控制台 handler，強制使用 UTF-8 編碼
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        
+        # 設定根 logger
         logging.basicConfig(
             level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_path, encoding='utf-8'),
-                logging.StreamHandler(sys.stdout)
-            ]
+            handlers=[file_handler, console_handler]
         )
         
         self.logger = logging.getLogger(__name__)
@@ -74,58 +89,105 @@ class MomoAccountingCleaner:
             self.logger.error(f"載入 mapping 失敗：{e}")
             raise
     
-    def read_csv_files(self, mapping):
-        """讀取 C1105 CSV 檔案"""
-        # 尋找 C1105 開頭的檔案
-        c1105_files = glob(str(self.source_dir / "C1105_*.csv"))
-        
+    def read_csv_files(self, mapping: dict[str, dict]) -> pd.DataFrame:
+        """讀取 C1105 檔案，支援 csv/xls/xlsx"""
+        # 搜尋 C1105 開頭的各種格式檔案
+        patterns = ["C1105_*.csv", "C1105_*.xls", "C1105_*.xlsx"]
+        c1105_files: list[str] = []
+        for pattern in patterns:
+            c1105_files.extend(glob(str(self.source_dir / pattern)))
+
         if not c1105_files:
-            self.logger.warning(f"在 {self.source_dir} 目錄下沒有找到 C1105 CSV 檔案")
+            self.logger.warning(f"在 {self.source_dir} 目錄下沒有找到 C1105 檔案")
             return pd.DataFrame()
-        
-        self.logger.info(f"找到 {len(c1105_files)} 個 C1105 檔案")
-        
+
+        # 統計各類型檔案數量
+        def count_files(suffix: str) -> int:
+            return len([f for f in c1105_files if f.lower().endswith(suffix)])
+        self.logger.info(f"找到 {count_files('.csv')} 個 CSV 檔案")
+        self.logger.info(f"找到 {count_files('.xls')} 個 XLS 檔案")
+        self.logger.info(f"找到 {count_files('.xlsx')} 個 XLSX 檔案")
+
         # 建立中文到英文的欄位對應
-        zh_to_en = {v["zh_name"]: k for k, v in mapping.items()}
-        
+        zh_to_en: dict[str, str] = {v["zh_name"]: k for k, v in mapping.items()}
+
         dfs = []
         for file_path in c1105_files:
             try:
-                df = pd.read_csv(file_path, dtype=str, encoding='utf-8-sig').fillna("")
-                
+                file_name = Path(file_path).name
+                # 根據副檔名選擇讀取方式
+                if file_path.lower().endswith('.csv'):
+                    df = None
+                    encodings = ['utf-8-sig', 'utf-8', 'cp950', 'big5', 'gbk', 'gb2312']
+                    for encoding in encodings:
+                        try:
+                            df = pd.read_csv(file_path, dtype=str, encoding=encoding).fillna("")
+                            self.logger.info(f"成功使用編碼：{encoding}")
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                        except Exception as e:
+                            self.logger.warning(f"編碼 {encoding} 讀取失敗：{e}")
+                            continue
+                    if df is None:
+                        self.logger.error(f"無法讀取檔案：{file_name}，所有編碼都失敗")
+                        continue
+                else:
+                    # excel 檔案
+                    try:
+                        df = pd.read_excel(file_path, dtype=str).fillna("")
+                        self.logger.info(f"成功讀取 Excel 檔案：{file_name}")
+                    except Exception as e:
+                        self.logger.error(f"無法讀取 Excel 檔案：{file_name} - {e}")
+                        continue
+
                 # 重新命名欄位
                 df = df.rename(columns=zh_to_en)
-                
+
                 # 過濾空的訂單編號
                 if 'order_sn' in df.columns:
                     df = df[df['order_sn'].str.strip() != ""]
-                
+
                 # 清理字串欄位
                 for col in df.columns:
                     if df[col].dtype == 'object':
                         df[col] = df[col].astype(str).str.replace('\n', ' ').str.replace('\r', ' ').str.strip()
-                        # 清理數值欄位的 .0 後綴
                         if col in ['product_sku_main', 'quantity']:
                             df[col] = df[col].str.replace(r'\.0$', '', regex=True)
-                
+
                 # 標記資料來源
-                file_name = Path(file_path).name
                 df['data_source'] = 'C1105'
-                
                 dfs.append(df)
                 self.logger.info(f"讀取成功：{file_name} ({len(df)} 筆)")
-                
             except Exception as e:
                 self.logger.error(f"讀取失敗：{file_path} - {e}")
-        
+
         if not dfs:
             return pd.DataFrame()
-        
-        # 合併所有資料
         combined_df = pd.concat(dfs, ignore_index=True)
         self.logger.info(f"總共讀取 {len(combined_df)} 筆原始資料")
-        
         return combined_df
+    
+    def standardize_date_format(self, date_str):
+        """標準化日期格式：YYYY/MM/DD -> YYYY-MM-DD"""
+        if not isinstance(date_str, str) or not date_str.strip():
+            return ""
+        
+        try:
+            # 處理 YYYY/MM/DD 格式
+            if '/' in date_str:
+                parts = date_str.split('/')
+                if len(parts) == 3:
+                    year, month, day = parts
+                    return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
+            
+            # 如果已經是 YYYY-MM-DD 格式，直接返回
+            if '-' in date_str and len(date_str) == 10:
+                return date_str
+                
+            return date_str
+        except:
+            return ""
     
     def process_data(self, df, mapping, columns):
         """根據 mapping 處理資料"""
@@ -137,22 +199,8 @@ class MomoAccountingCleaner:
         
         # 處理訂單日期 (C1105 有原始的訂單成立日)
         if 'order_date' in df.columns:
-            # 標準化日期格式
-            def standardize_date(date_str):
-                if not isinstance(date_str, str) or not date_str.strip():
-                    return ""
-                try:
-                    # 嘗試解析 YYYY/MM/DD 格式
-                    if '/' in date_str:
-                        parts = date_str.split('/')
-                        if len(parts) == 3:
-                            year, month, day = parts
-                            return f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
-                    return date_str
-                except:
-                    return ""
-            
-            df['order_date'] = df['order_date'].apply(standardize_date)
+            self.logger.info("標準化訂單日期格式")
+            df['order_date'] = df['order_date'].apply(self.standardize_date_format)
         else:
             # 如果沒有訂單日期欄位，從訂單編號解析
             def parse_order_date(order_sn):
@@ -195,6 +243,13 @@ class MomoAccountingCleaner:
         if 'order_sn' in df.columns:
             df['key_for_merge'] = 'momo_' + df['order_sn'].astype(str)
         
+        # 處理其他日期欄位
+        date_fields = ['ship_by_date']
+        for field in date_fields:
+            if field in df.columns:
+                self.logger.info(f"標準化日期欄位：{field}")
+                df[field] = df[field].apply(self.standardize_date_format)
+        
         # 處理日期時間欄位
         datetime_fields = ['order_transfer_date', 'actual_shipping_date']
         for field in datetime_fields:
@@ -203,22 +258,22 @@ class MomoAccountingCleaner:
                     if not isinstance(dt_str, str) or not dt_str.strip():
                         return ""
                     try:
-                        # 處理 YYYY/MM/DD 格式
+                        # 處理 YYYY/MM/DD HH:MM 格式
                         if '/' in dt_str:
-                            date_part = dt_str.split(' ')[0]  # 取日期部分
-                            parts = date_part.split('/')
-                            if len(parts) == 3:
-                                year, month, day = parts
-                                formatted_date = f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
-                                if ' ' in dt_str:  # 有時間部分
-                                    time_part = dt_str.split(' ')[1]
+                            if ' ' in dt_str:  # 有時間部分
+                                date_part, time_part = dt_str.split(' ', 1)
+                                parts = date_part.split('/')
+                                if len(parts) == 3:
+                                    year, month, day = parts
+                                    formatted_date = f"{int(year):04d}-{int(month):02d}-{int(day):02d}"
                                     return f"{formatted_date} {time_part}"
-                                else:
-                                    return formatted_date
+                            else:  # 只有日期部分
+                                return self.standardize_date_format(dt_str)
                         return dt_str
                     except:
                         return ""
                 
+                self.logger.info(f"標準化日期時間欄位：{field}")
                 df[field] = df[field].apply(standardize_datetime)
         
         # 確保所有欄位存在並設定正確的資料類型 (BigQuery 相容)
@@ -249,12 +304,12 @@ class MomoAccountingCleaner:
                 
                 elif data_type in ['DATE']:
                     # BigQuery DATE 類型 (YYYY-MM-DD)
-                    # 保持字串格式，確保格式正確
+                    # 日期欄位已經在上面處理過格式標準化
                     pass
                 
                 elif data_type in ['DATETIME', 'TIMESTAMP']:
                     # BigQuery DATETIME/TIMESTAMP 類型
-                    # 保持字串格式，確保格式正確
+                    # 日期時間欄位已經在上面處理過格式標準化
                     pass
                 
                 else:

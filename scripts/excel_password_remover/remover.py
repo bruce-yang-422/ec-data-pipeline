@@ -1,4 +1,18 @@
-# scripts/remover.py
+# scripts/excel_password_remover/remover.py
+"""
+Excel 密碼移除工具
+
+功能：
+- 使用 msoffcrypto-tool 解開 Excel 開啟密碼
+- 支援多種 Office 檔案格式
+- 自動處理未加密檔案
+
+輸入：加密的 Excel 檔案路徑和密碼
+輸出：解密後的 Excel 檔案
+
+Authors: 楊翔志 & AI Collective
+Studio: tranquility-base
+"""
 
 import msoffcrypto
 import shutil

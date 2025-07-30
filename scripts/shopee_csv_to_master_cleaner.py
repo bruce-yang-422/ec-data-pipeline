@@ -7,6 +7,16 @@ shopee_csv_to_master_cleaner.py
 - 輸出到 shopee_master_orders_cleaned.csv
 
 使用：python shopee_csv_to_master_cleaner.py
+
+輸入：
+- temp/shopee/*.csv 檔案
+- config/shopee_fields_mapping.json
+
+輸出：
+- data_processed/merged/shopee_master_orders_cleaned.csv
+
+Authors: 楊翔志 & AI Collective
+Studio: tranquility-base
 """
 
 import pandas as pd

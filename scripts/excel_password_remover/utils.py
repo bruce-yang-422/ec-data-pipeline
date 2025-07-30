@@ -5,6 +5,17 @@
 - 密碼設定載入 (json/yaml)
 - 路徑確保
 - zip 壓縮檔自動解壓（可擴充）
+
+輸入：
+- JSON/YAML 密碼設定檔案
+- ZIP 壓縮檔案
+
+輸出：
+- 解壓縮後的檔案
+- 確保存在的目錄
+
+Authors: 楊翔志 & AI Collective
+Studio: tranquility-base
 """
 
 import os

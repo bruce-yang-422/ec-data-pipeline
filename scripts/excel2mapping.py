@@ -46,6 +46,9 @@
 - 支援處理額外的「來源」欄位
 - 自動跳過空的工作表
 - 改進錯誤處理和日誌輸出
+
+Authors: 楊翔志 & AI Collective
+Studio: tranquility-base
 """
 
 import os
