@@ -5,7 +5,7 @@ import json
 import glob
 import re
 import unicodedata
-# from datetime import datetime  # 移除未使用的 import
+from datetime import datetime
 
 RAW_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data_raw', 'Yahoo')
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'temp', 'Yahoo')
@@ -71,20 +71,47 @@ def smart_column_map(src_columns: list[str], mapping_zh_names: list[str]) -> dic
 
 def process_file(filepath):
     log(f'處理檔案: {filepath}')
-    encodings = ['utf-8-sig', 'utf-8', 'cp950', 'big5', 'gbk', 'gb2312']
-    df = None
-    for encoding in encodings:
+    file_ext = os.path.splitext(filepath)[1].lower()
+    
+    if file_ext in ['.xls', '.xlsx']:
+        # 處理 Excel 檔案
         try:
-            df = pd.read_csv(filepath, dtype=str, encoding=encoding)
+            if file_ext == '.xls':
+                df = pd.read_excel(filepath, dtype=str, engine='xlrd')
+            else:  # .xlsx
+                df = pd.read_excel(filepath, dtype=str, engine='openpyxl')
             df.columns = [col.strip() for col in df.columns]
-            log(f"成功使用編碼：{encoding}")
-            break
+            log(f"成功讀取 Excel 檔案：{filepath}")
         except Exception as e:
-            log(f"[WARN] 編碼 {encoding} 失敗: {e}")
-            continue
-    if df is None:
-        log(f"[ERROR] 無法讀取檔案：{filepath}")
-        return None
+            log(f"[ERROR] 無法讀取 Excel 檔案：{filepath}, 錯誤：{e}")
+            # 嘗試其他 engine
+            try:
+                if file_ext == '.xls':
+                    df = pd.read_excel(filepath, dtype=str, engine='openpyxl')
+                else:
+                    df = pd.read_excel(filepath, dtype=str, engine='xlrd')
+                df.columns = [col.strip() for col in df.columns]
+                log(f"使用備用 engine 成功讀取 Excel 檔案：{filepath}")
+            except Exception as e2:
+                log(f"[ERROR] 備用 engine 也失敗：{filepath}, 錯誤：{e2}")
+                return None
+    else:
+        # 處理 CSV 檔案
+        encodings = ['utf-8-sig', 'utf-8', 'cp950', 'big5', 'gbk', 'gb2312']
+        df = None
+        for encoding in encodings:
+            try:
+                df = pd.read_csv(filepath, dtype=str, encoding=encoding)
+                df.columns = [col.strip() for col in df.columns]
+                log(f"成功使用編碼：{encoding}")
+                break
+            except Exception as e:
+                log(f"[WARN] 編碼 {encoding} 失敗: {e}")
+                continue
+        if df is None:
+            log(f"[ERROR] 無法讀取檔案：{filepath}")
+            return None
+    
     log(f"原始資料欄位: {list(df.columns)}")
     log(f"原始資料筆數: {len(df)}")
     df = df.fillna('')
@@ -133,7 +160,7 @@ def process_file(filepath):
 def batch_clean():
     files = []
     log(f"[INFO] RAW_DIR: {RAW_DIR}")
-    for ext in ['csv', 'CSV']:
+    for ext in ['csv', 'CSV', 'xls', 'xlsx']:
         files_found = glob.glob(os.path.join(RAW_DIR, f'*.{ext}'))
         if files_found:
             log(f"[INFO] 找到 {len(files_found)} 個 *.{ext} 檔案")
@@ -163,19 +190,25 @@ def batch_clean():
     # 取得 order_date 範圍
     min_date, max_date = None, None
     if 'order_date' in merged_df.columns:
-        try:
-            order_dates = pd.to_datetime(merged_df['order_date'], errors='coerce')
-            min_date = order_dates.min()
-            max_date = order_dates.max()
-            log(f"order_date 範圍: {min_date} ~ {max_date}")
-        except Exception as e:
-            log(f"[WARN] order_date 解析失敗: {e}")
-    min_str = min_date.strftime('%Y%m%d') if pd.notnull(min_date) else 'NA'
-    max_str = max_date.strftime('%Y%m%d') if pd.notnull(max_date) else 'NA'
-    out_name = f"Yahoo_order_data_{min_str}_{max_str}.csv"
-    out_path = os.path.join(OUTPUT_DIR, out_name)
-    merged_df.to_csv(out_path, index=False, encoding='utf-8-sig')
-    log(f'已輸出: {out_path}')
+        valid_dates = pd.to_datetime(merged_df['order_date'], errors='coerce').dropna()
+        if len(valid_dates) > 0:
+            min_date = valid_dates.min().strftime('%Y%m%d')
+            max_date = valid_dates.max().strftime('%Y%m%d')
+            log(f"[INFO] order_date 範圍: {min_date} ~ {max_date}")
+    # 輸出檔案
+    if min_date and max_date:
+        output_filename = f'Yahoo_order_data_{min_date}_{max_date}.csv'
+    else:
+        output_filename = f'Yahoo_order_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    output_path = os.path.join(OUTPUT_DIR, output_filename)
+    merged_df.to_csv(output_path, index=False, encoding='utf-8-sig')
+    log(f"[INFO] 輸出檔案: {output_path}")
+    log(f"[INFO] 最終資料筆數: {len(merged_df)}")
+    log(f"[INFO] 最終資料欄位: {list(merged_df.columns)}")
+    # 統計每欄非空值數量
+    for col in merged_df.columns:
+        non_null_count = merged_df[col].notna().sum()
+        log(f"[INFO] {col}: {non_null_count}/{len(merged_df)} 筆有值")
 
 if __name__ == '__main__':
     batch_clean() 
