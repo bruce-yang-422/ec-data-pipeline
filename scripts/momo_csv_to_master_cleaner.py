@@ -59,7 +59,7 @@ def clean_dataframe(df: pd.DataFrame, field_types: dict) -> pd.DataFrame:
 
 def process_file(csv_path: Path, schema_path: Path):
     print(f"🧼 處理檔案: {csv_path.name}")
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path, dtype=str)
     field_types = load_field_types(schema_path)
     df = clean_dataframe(df, field_types)
     df.to_csv(csv_path, index=False)

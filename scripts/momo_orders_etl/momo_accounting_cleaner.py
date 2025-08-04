@@ -152,7 +152,7 @@ class MomoAccountingCleaner:
                 for col in df.columns:
                     if df[col].dtype == 'object':
                         df[col] = df[col].astype(str).str.replace('\n', ' ').str.replace('\r', ' ').str.strip()
-                        if col in ['product_sku_main', 'quantity']:
+                        if col in ['product_sku_main', 'quantity', 'product_manufacturer_code']:
                             df[col] = df[col].str.replace(r'\.0$', '', regex=True)
 
                 # 標記資料來源

@@ -4,24 +4,32 @@
 自動解壓縮＋多帳號 Excel 密碼移除＋完整 log ＋ 資料清理
 用途：
     - 支援多平台/多帳號/多密碼。
+    - 支援 ZIP 和 RAR 檔案解壓縮（含密碼保護）。
     - 將所有資料處理過程紀錄在 log。
     - 檢查密碼檔未處理檔案提示。
-    - 批次處理 data_raw/shopee 下的所有檔案（xlsx 和 csv）
+    - 批次處理 data_raw/ 下各平台的所有檔案（xlsx、csv、zip、rar）
     - 自動清理資料中的空格和換行符號
 流程：
-    1. 先解壓縮所有檔案到 temp/平台名稱
+    1. 先解壓縮所有 ZIP/RAR 檔案到 temp/平台名稱（支援密碼）
     2. 移除所有 Excel 檔案密碼
     3. 轉換所有 Excel 檔案為 CSV
     4. 清理 CSV 資料中的空格和換行符號
     5. 刪除 Excel 檔案，只保留 CSV
 
 輸入：
-- data_raw/ 目錄下的各平台檔案
-- config/ec_shops_universal_passwords.json
+- data_raw/ 目錄下的各平台檔案（支援 .zip、.rar、.xlsx、.xls、.csv）
+- config/ec_shops_universal_passwords.json（包含各平台密碼）
 
 輸出：
 - temp/ 目錄下的處理後檔案
 - logs/execution_log_*.txt
+
+支援的平台密碼：
+- etmall: 東森購物密碼
+- momo: MOMO購物中心密碼
+- shopee: 蝦皮密碼
+- pchome: PC購物中心密碼
+- yahoo: Yahoo購物中心密碼
 
 Authors: 楊翔志 & AI Collective
 Studio: tranquility-base
@@ -29,7 +37,7 @@ Studio: tranquility-base
 
 from pathlib import Path
 from remover import remove_password
-from utils import ensure_dir, extract_zip_files, load_passwords_json
+from utils import ensure_dir, extract_archive_files, batch_extract_archives, load_passwords_json, get_password_for_platform
 import datetime
 import shutil
 import sys
@@ -157,31 +165,39 @@ def main() -> None:
     # ============= 階段 1: 解壓縮和複製所有檔案到 temp 目錄 =============
     log_lines.append("=== 階段 1: 解壓縮和複製檔案 ===")
     
-    for file_path in raw_dir.rglob("*"):
-        if not file_path.is_file():
-            continue
-        
-        filename = file_path.name
-        if filename.startswith("."):
+    # 處理每個平台的目錄
+    for platform_dir in raw_dir.iterdir():
+        if not platform_dir.is_dir():
             continue
             
-        # 支援的檔案格式
-        if not filename.lower().endswith(('.xlsx', '.xls', '.csv', '.zip')):
-            continue
-
-        # 確定平台和輸出目錄
-        platform = file_path.parent.name
+        platform = platform_dir.name
         platform_temp_dir = temp_dir / platform
         ensure_dir(platform_temp_dir)
         
-        if filename.lower().endswith('.zip'):
-            # 解壓縮檔案
-            try:
-                extract_zip_files(str(file_path), str(platform_temp_dir))
-                log_lines.append(f"解壓縮成功: {platform}/{filename}")
-            except Exception as e:
-                log_lines.append(f"解壓縮失敗: {platform}/{filename} - {e}")
-        else:
+        # 批次解壓縮該平台目錄中的所有壓縮檔案
+        extracted_dirs = batch_extract_archives(
+            platform_dir, 
+            platform_temp_dir, 
+            platform, 
+            data
+        )
+        
+        if extracted_dirs:
+            log_lines.append(f"平台 {platform} 解壓縮完成，共 {len(extracted_dirs)} 個檔案")
+        
+        # 複製非壓縮檔案
+        for file_path in platform_dir.glob("*"):
+            if not file_path.is_file():
+                continue
+                
+            filename = file_path.name
+            if filename.startswith("."):
+                continue
+                
+            # 支援的檔案格式（排除已處理的壓縮檔案）
+            if not filename.lower().endswith(('.xlsx', '.xls', '.csv')):
+                continue
+            
             # 直接複製檔案
             try:
                 output_path = platform_temp_dir / filename
@@ -209,10 +225,35 @@ def main() -> None:
                 
             # 尋找匹配的帳號密碼
             matched_account = None
-            for shop_name, info in accounts.items():
-                if shop_name in filename or (info["account"] and info["account"] in filename):
-                    matched_account = {"name": shop_name, **info}
-                    break
+            
+            # 首先嘗試根據平台名稱取得密碼
+            platform_password = get_password_for_platform(platform, data)
+            if platform_password:
+                # 根據平台名稱找到對應的商店資訊
+                for shop in data:
+                    if shop.get('keywords'):
+                        platform_keywords = {
+                            'etmall': ['東森', '東森購物', '森森'],
+                            'momo': ['MOMO購物中心', 'MOMO', '富邦', '富邦MOMO'],
+                            'shopee': ['蝦皮', 'Shopee'],
+                            'pchome': ['PC購物中心', 'PC', '網家'],
+                            'yahoo': ['Yahoo', 'Yahoo購物中心', '雅虎購物中心', '雅虎']
+                        }
+                        keywords = platform_keywords.get(platform.lower(), [])
+                        if any(kw in shop['keywords'] for kw in keywords):
+                            matched_account = {
+                                "name": shop['shop_name'],
+                                "account": shop.get('shop_account', ''),
+                                "password": platform_password
+                            }
+                            break
+            
+            # 如果沒有找到，使用原有的檔案名稱匹配邏輯
+            if not matched_account:
+                for shop_name, info in accounts.items():
+                    if shop_name in filename or (info["account"] and info["account"] in filename):
+                        matched_account = {"name": shop_name, **info}
+                        break
             
             if matched_account:
                 # 移除密碼
