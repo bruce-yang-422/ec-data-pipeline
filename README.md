@@ -33,12 +33,12 @@ EC Data Pipeline 是一個專為台灣電商企業設計的多平台資料整合
 完整的 6 階段處理流程，是系統最成熟的模組：
 
 ```
-01_etmall_xlsx_to_csv.py        → Excel 轉 CSV + 自動備份
-02_etmall_orders_cleaner.py     → 資料清洗 + 欄位標準化
-03_etmall_orders_deduplicator.py → 智能去重處理
-04_etmall_orders_enricher.py    → 店家資訊增強
-05_etmall_orders_product_matcher.py → 產品主檔匹配
-06_etmall_orders_bq_formatter.py → BigQuery 格式轉換
+01_etmall_xlsx_to_csv.py        → Excel 轉 CSV + 智能備份 + 日期時間分離
+02_etmall_orders_cleaner.py     → 資料清洗 + 欄位標準化 + 中間檔生成
+03_etmall_orders_deduplicator.py → 智能合併去重 + 資料排序
+04_etmall_orders_enricher.py    → 店家資訊增強 + 平台識別
+05_etmall_orders_product_matcher.py → 產品主檔匹配 + 商品資訊豐富
+06_etmall_orders_bq_formatter.py → BigQuery 格式轉換 + 欄位型態轉換
 etmall_to_bigquery_uploader.py  → 專用雲端上傳器
 ```
 
@@ -243,17 +243,17 @@ mkdir -p {config,data_raw/{etmall,momo,pchome,shopee,Yahoo},data_processed/{merg
    # 階段 2: 資料清理與標準化
    python scripts/etmall_orders_etl/02_etmall_orders_cleaner.py
    
-   # 階段 3: 智能去重處理
+   # 階段 3: 智能合併去重 + 資料排序
    python scripts/etmall_orders_etl/03_etmall_orders_deduplicator.py
    
-   # 階段 4: 店家資訊增強
+   # 階段 4: 店家資訊增強 + 平台識別
    python scripts/etmall_orders_etl/04_etmall_orders_enricher.py
    
-   # 階段 5: 產品資訊匹配
+   # 階段 5: 產品資訊匹配 + 商品資訊豐富
    python scripts/etmall_orders_etl/05_etmall_orders_product_matcher.py
    
-   # 階段 6: BigQuery 格式轉換
-   python scripts/etmall_orders_etl/06_etmall_orders_bq_formatter.py
+   # 階段 6: BigQuery 格式轉換 + 欄位型態轉換
+   python scripts/etmall_orders_bq_formatter.py
    ```
 
 3. **BigQuery 上傳**
@@ -357,6 +357,15 @@ python scripts/TreeMaker.py
 - 📝 **自動欄位處理**：自動添加 `processing_date` 欄位
 - 🛡️ **完整錯誤處理**：詳細的日誌記錄和錯誤處理
 - 📍 **智能路徑檢測**：支援多種執行目錄
+- 📊 **Schema 對應**：64 個欄位完整對應 BigQuery 結構
+
+### 新增功能特色
+
+- 🗂️ **自動檔案清理**：06_etmall_orders_bq_formatter.py 自動清理舊的 BigQuery 格式檔案
+- 🎯 **智能去重邏輯**：使用 order_sn + item_no 作為唯一鍵，支援業務跳號（如 item_no = 1, 3）
+- 📊 **資料排序優化**：按 order_sn 由小到大排序，每個訂單內按 item_no 排序
+- 🧹 **空值處理優化**：自動將 "nan" 字串轉換為空白，確保資料品質
+- 🔄 **中間檔管理**：02_etmall_orders_cleaner.py 生成銷售報表和明細報表中間檔
 
 #### 使用方法
 
@@ -381,7 +390,7 @@ python scripts/bigquery_uploader/etmall_to_bigquery_uploader.py --csv data_proce
 
 系統支援以下 BigQuery 資料表：
 
-- **etmall_orders_data**: 東森購物訂單資料（56 個欄位）
+- **etmall_orders_data**: 東森購物訂單資料（64 個欄位）
 - **c1105_momo_accounting_orders**: MOMO 帳務對帳資料
 - **a1102_momo_shipping_orders**: MOMO 出貨管理資料
 - **pchome_orders_data**: PChome 訂單資料
@@ -467,14 +476,14 @@ graph TB
 
 ## 🆕 版本更新
 
-### v3.0.0 (2025-01-XX) - 多平台整合版本
-- 🌟 **全新架構**：重新設計模組化架構，支援 5 大電商平台
-- 🔧 **Yahoo ETL 流程**：新增完整的 Yahoo 購物中心 5 階段 ETL 處理
-- 📊 **智能檔案識別**：Yahoo 支援自動識別 orders, delivery, sps_orders, retgood 四種報表類型
-- 🔄 **MOMO 批次處理器**：新增 momo_batch_processor.py 統一管理雙軌處理流程
-- 📁 **檔案重命名系統**：MOMO 和 Yahoo 均支援智能檔案重命名和版本管理
-- 🛡️ **增強錯誤處理**：所有模組均加入完整的錯誤處理和恢復機制
-- 📈 **資料品質工具**：新增 data_date_checker.py 檢查資料完整性
+### v3.0.0 (2025-08-18) - ETMall ETL 流程重構與優化
+- 🔄 **ETMall ETL 重構**：將 6 階段 ETL 流程優化，改善資料處理邏輯
+- 🎯 **智能去重處理**：新增 03_etmall_orders_deduplicator.py，使用 order_sn + item_no 作為唯一鍵
+- 📊 **BigQuery 格式轉換**：新增 06_etmall_orders_bq_formatter.py，自動轉換為 BigQuery 格式
+- 🛡️ **檔案管理優化**：自動清理舊檔案，確保只保留最新的輸出檔案
+- 🔧 **欄位映射優化**：改善欄位順序處理，參考 etmall_fields_mapping.json
+- 📈 **資料品質提升**：優化空值處理，將 "nan" 字串轉換為空白
+- 🚀 **多平台支援擴展**：新增 momo 和 yahoo 平台的完整 ETL 腳本
 
 ### v2.1.0 (2025-08-07) - ETMall BigQuery 上傳器
 - 🚀 **新增功能**：ETMall 專用 BigQuery 上傳器
@@ -500,6 +509,13 @@ graph TB
 
 > **多平台不統一？資料處理很複雜？一套系統全搞定！**  
 > **讓資料自己清洗、自己對齊、自己上雲端、自己做分析！**
+
+### 🆕 最新特色
+
+- 🔄 **智能 ETL 流程**：ETMall 6 階段 ETL 流程，每個階段都有明確的職責分工
+- 🎯 **業務邏輯優化**：支援業務跳號、智能去重、自動檔案清理
+- 📊 **資料品質保證**：自動空值處理、欄位型態轉換、資料排序優化
+- 🚀 **雲端就緒**：直接輸出 BigQuery 格式，一鍵上傳雲端
 
 ---
 
