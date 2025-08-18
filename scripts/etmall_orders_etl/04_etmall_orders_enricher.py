@@ -3,7 +3,7 @@
 東森購物訂單資料增強腳本
 
 功能：
-- 讀取由 etmall_merger.py 產生的合併後 CSV 檔案
+- 讀取由 03_etmall_orders_deduplicator.py 產生的最新 CSV 檔案
 - 載入 config/A02_Shops_Master.json
 - 根據 'platform' 欄位將 'shop_id', 'shop_name', 'shop_business_model', 'location', 'department', 'manager' 欄位
   新增到訂單資料中
@@ -100,48 +100,98 @@ def main():
     logging.info(f'輸出目錄：{output_dir}')
 
     # 載入店家主檔配置
-    shop_master_list = load_json_config(shop_master_file)
-    if not shop_master_list:
+    shop_master_data = load_json_config(shop_master_file)
+    if not shop_master_data:
         logging.error('無法載入店家主檔，停止執行')
         sys.exit(1)
+    
+    # 提取 shops 列表
+    if 'shops' in shop_master_data:
+        shop_master_list = shop_master_data['shops']
+        logging.info(f'從店家主檔中載入了 {len(shop_master_list)} 個店家資訊')
+    else:
+        # 如果沒有 shops 鍵，假設整個文件就是店家列表
+        shop_master_list = shop_master_data
+        logging.info(f'載入了 {len(shop_master_list)} 個店家資訊')
 
-    # 尋找最新的 etmall 合併後檔案
+    # 尋找最新的 etmall 合併檔案
     logging.info(f'\n=== 尋找最新的合併檔案 ===')
-    merged_files = sorted(list(input_dir.glob('etmall_orders_merged_*.csv')), reverse=True)
-
+    merged_files = sorted(list(input_dir.glob('03_etmall_orders_merged_*.csv')), reverse=True)
+    
     if not merged_files:
-        logging.warning(f'在 {input_dir} 目錄下沒有找到任何合併後的檔案')
-        return
-
-    latest_merged_file = merged_files[0]
-    logging.info(f'找到最新檔案：{latest_merged_file.name}')
+        logging.error(f'在 {input_dir} 目錄下沒有找到任何合併後的檔案，請先執行 03_etmall_orders_deduplicator.py')
+        sys.exit(1)
+    
+    latest_file = merged_files[0]
+    logging.info(f'找到最新合併檔案：{latest_file.name}')
 
     try:
-        df_orders = pd.read_csv(latest_merged_file, dtype=str)
-        logging.info(f'已讀取訂單資料，總共 {len(df_orders)} 筆')
+        df_orders = pd.read_csv(latest_file, dtype=str)
+        logging.info(f'已讀取合併資料，總共 {len(df_orders)} 筆')
     except Exception as e:
-        logging.exception(f'錯誤：讀取訂單檔案失敗：{latest_merged_file.name}')
+        logging.exception(f'錯誤：讀取合併檔案失敗：{latest_file.name}')
         sys.exit(1)
 
     logging.info(f'\n=== 開始新增欄位 ===')
 
     # 將店家主檔轉換為 DataFrame，以利合併
     df_shops = pd.DataFrame(shop_master_list)
-    df_shops = df_shops[['shop_id', 'shop_name', 'shop_business_model', 'location', 'department', 'manager']]
-
-    # 執行合併 (Join)
-    etmall_shop_info = df_shops[df_shops['shop_name'] == '東森購物'].iloc[0]
-
-    if not etmall_shop_info.empty:
-        df_orders['shop_id'] = etmall_shop_info['shop_id']
-        df_orders['shop_name'] = etmall_shop_info['shop_name']
-        df_orders['shop_business_model'] = etmall_shop_info['shop_business_model']
-        df_orders['location'] = etmall_shop_info['location']
-        df_orders['department'] = etmall_shop_info['department']
-        df_orders['manager'] = etmall_shop_info['manager']
-        logging.info('已成功新增店家相關欄位')
-    else:
-        logging.warning("在店家主檔中未找到 '東森購物' 的資料，無法新增欄位")
+    
+    # 檢查訂單資料中是否有 platform 欄位
+    if 'platform' not in df_orders.columns:
+        logging.warning("訂單資料中沒有 'platform' 欄位，將新增預設值 'etmall'")
+        df_orders['platform'] = 'etmall'
+    
+    # 獲取訂單資料中的唯一 platform 值
+    unique_platforms = df_orders['platform'].unique()
+    logging.info(f"訂單資料中的平台：{unique_platforms}")
+    
+    # 為每個平台尋找對應的店家資訊
+    for platform in unique_platforms:
+        logging.info(f"處理平台：{platform}")
+        
+        # 根據平台名稱尋找對應的店家資訊
+        # 這裡可以根據實際需求調整匹配邏輯
+        if platform == 'etmall':
+            shop_filter = df_shops['shop_name'] == '東森購物'
+        elif platform == 'momo':
+            shop_filter = df_shops['shop_name'] == 'MOMO購物中心'
+        elif platform == 'pchome':
+            shop_filter = df_shops['shop_name'] == 'PC購物中心'
+        elif platform == 'yahoo':
+            shop_filter = df_shops['shop_name'] == 'Yahoo購物中心'
+        else:
+            # 對於未知平台，嘗試模糊匹配
+            shop_filter = df_shops['shop_name'].str.contains(platform, case=False, na=False)
+        
+        platform_shop_info = df_shops[shop_filter]
+        
+        if not platform_shop_info.empty:
+            # 取得該平台的第一筆店家資訊
+            shop_info = platform_shop_info.iloc[0]
+            
+            # 為該平台的所有訂單新增店家相關欄位
+            platform_mask = df_orders['platform'] == platform
+            
+            df_orders.loc[platform_mask, 'shop_id'] = shop_info['shop_id']
+            df_orders.loc[platform_mask, 'shop_name'] = shop_info['shop_name']
+            df_orders.loc[platform_mask, 'shop_business_model'] = shop_info['shop_business_model']
+            df_orders.loc[platform_mask, 'location'] = shop_info['location']
+            df_orders.loc[platform_mask, 'department'] = shop_info['department']
+            df_orders.loc[platform_mask, 'manager'] = shop_info['manager']
+            
+            logging.info(f"已為平台 '{platform}' 新增店家資訊：{shop_info['shop_name']} (ID: {shop_info['shop_id']})")
+        else:
+            logging.warning(f"在店家主檔中未找到平台 '{platform}' 的對應店家資訊，相關欄位將保持空白")
+            # 為該平台的所有訂單新增空白欄位
+            platform_mask = df_orders['platform'] == platform
+            
+            df_orders.loc[platform_mask, 'shop_id'] = ''
+            df_orders.loc[platform_mask, 'shop_name'] = ''
+            df_orders.loc[platform_mask, 'shop_business_model'] = ''
+            df_orders.loc[platform_mask, 'location'] = ''
+            df_orders.loc[platform_mask, 'department'] = ''
+            df_orders.loc[platform_mask, 'manager'] = ''
 
     # 儲存最終的增強檔案
     output_filename = f'04_etmall_orders_enriched_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'

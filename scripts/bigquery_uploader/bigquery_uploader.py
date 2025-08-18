@@ -30,13 +30,15 @@ from bigquery_utils import get_bq_client, upload_csv_to_bq, check_duplicate_orde
 from bq_schemas import (
     c1105_momo_accounting_orders_schema,
     a1102_momo_shipping_orders_schema,
+    etmall_orders_schema,
 )
 
 # 預設 dataset 與 cleaned 檔案路徑
 DEFAULT_DATASET = "yichai_momo_data"
 DEFAULT_FILES = {
-    "c1105_momo_accounting_orders": "data_processed/merged/momo_accounting_orders_cleaned.csv",
-    "a1102_momo_shipping_orders": "data_processed/merged/momo_shipping_orders_cleaned.csv",
+    "c1105_momo_accounting_orders": "data_processed/merged/momo_accounting_orders_deduplicated.csv",
+    "a1102_momo_shipping_orders": "data_processed/merged/momo_shipping_orders_deduplicated.csv",
+    "etmall_orders": "data_processed/merged/etmall_orders_bq_formatted_20250807_115715.csv",
 }
 
 
@@ -129,6 +131,7 @@ def upload_single_file(credential_path: str, csv_path: str, dataset_id: str, tab
     schema_dict = {
         "c1105_momo_accounting_orders": c1105_momo_accounting_orders_schema,
         "a1102_momo_shipping_orders": a1102_momo_shipping_orders_schema,
+        "etmall_orders": etmall_orders_schema,
     }
 
     schema = schema_dict.get(table_id)
@@ -215,13 +218,14 @@ def interactive_mode():
     # 設定日誌
     logger = setup_logging()
     
-    print("=== BigQuery 互動式上傳（Momo 訂單數據）===")
+    print("=== BigQuery 互動式上傳（多平台訂單數據）===")
     print("請選擇要上傳的檔案：")
-    print("1. c1105_momo_accounting_orders (訂單帳務)")
-    print("2. a1102_momo_shipping_orders (訂單出貨)")
-    print("3. 全部上傳")
+    print("1. c1105_momo_accounting_orders (Momo 訂單帳務)")
+    print("2. a1102_momo_shipping_orders (Momo 訂單出貨)")
+    print("3. etmall_orders (ETMall 訂單)")
+    print("4. 全部上傳")
     
-    choice = input("請輸入數字選擇 [1/2/3]：").strip()
+    choice = input("請輸入數字選擇 [1/2/3/4]：").strip()
     
     # 固定參數
     credential = "config/bigquery_uploader_key.json"
@@ -234,17 +238,23 @@ def interactive_mode():
     
     if choice == "1":
         table = "c1105_momo_accounting_orders"
-        csv = "data_processed/merged/momo_accounting_orders_cleaned.csv"
+        csv = "data_processed/merged/momo_accounting_orders_deduplicated.csv"
         logger.info(f"準備上傳: {csv} -> {dataset}.{table}")
         print(f"\n準備上傳: {csv} -> {dataset}.{table}")
         upload_single_file(credential, csv, dataset, table, write_disposition, check_duplicates, logger)
     elif choice == "2":
         table = "a1102_momo_shipping_orders"
-        csv = "data_processed/merged/momo_shipping_orders_cleaned.csv"
+        csv = "data_processed/merged/momo_shipping_orders_deduplicated.csv"
         logger.info(f"準備上傳: {csv} -> {dataset}.{table}")
         print(f"\n準備上傳: {csv} -> {dataset}.{table}")
         upload_single_file(credential, csv, dataset, table, write_disposition, check_duplicates, logger)
     elif choice == "3":
+        table = "etmall_orders"
+        csv = "data_processed/merged/etmall_orders_bq_formatted_20250807_115715.csv"
+        logger.info(f"準備上傳: {csv} -> {dataset}.{table}")
+        print(f"\n準備上傳: {csv} -> {dataset}.{table}")
+        upload_single_file(credential, csv, dataset, table, write_disposition, check_duplicates, logger)
+    elif choice == "4":
         logger.info("開始上傳所有檔案...")
         print("\n🚀 開始上傳所有檔案...")
         for table_name, csv_path in DEFAULT_FILES.items():

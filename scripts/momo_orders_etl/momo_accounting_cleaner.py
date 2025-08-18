@@ -38,8 +38,8 @@ class MomoAccountingCleaner:
         
         # 檔案路徑
         self.mapping_path = self.project_root / "config" / "c1105_momo_fields_mapping.json"
-        self.source_dir = self.project_root / "temp" / "momo"
-        self.output_dir = self.project_root / "data_processed" / "merged"
+        self.source_dir = self.project_root / "data_raw" / "momo"
+        self.output_dir = self.project_root / "temp" / "momo"
         self.output_path = self.output_dir / "momo_accounting_orders_cleaned.csv"
         self.logs_dir = self.project_root / "logs"
         
@@ -90,9 +90,9 @@ class MomoAccountingCleaner:
             raise
     
     def read_csv_files(self, mapping: dict[str, dict]) -> pd.DataFrame:
-        """讀取 C1105 檔案，支援 csv/xls/xlsx"""
-        # 搜尋 C1105 開頭的各種格式檔案
-        patterns = ["C1105_*.csv", "C1105_*.xls", "C1105_*.xlsx"]
+        """讀取 C1105 檔案，支援新的命名格式"""
+        # 搜尋 C1105 開頭的 CSV 檔案（新命名格式）
+        patterns = ["C1105_對帳訂單明細_*.csv"]
         c1105_files: list[str] = []
         for pattern in patterns:
             c1105_files.extend(glob(str(self.source_dir / pattern)))

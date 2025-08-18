@@ -4,8 +4,9 @@
 
 功能：
 - 讀取由 04_etmall_orders_enricher.py 產生的增強後 CSV 檔案
-- 載入 config/products.yaml
-- 以 'seller_product_sn' 欄位為鍵，與產品主檔的 'barcode' 進行匹配
+- 載入 config/products.yaml 和 config/etmall_fields_mapping.json
+- 使用 etmall_fields_mapping.json 進行中英文欄位名稱映射比對
+- 以 '廠商商品號碼' (seller_product_sn) 欄位為鍵，與產品主檔的 'barcode' 進行匹配
 - 新增 category, subcategory, brand, series, pet_type, product_name, item_code, sku,
   tags, spec, unit, origin, cost, supplier_code, supplier 等欄位
 - 將最終的增強資料輸出到 temp/etmall/
@@ -75,6 +76,42 @@ def load_yaml_config(file_path: Path) -> Dict[str, Any]:
     except Exception as e:
         logging.exception(f"錯誤：載入配置檔案時發生未知錯誤 {file_path}")
         return {}
+
+def detect_field_name(df: pd.DataFrame, possible_names: List[str], fields_mapping: Dict[str, Any] = None) -> Optional[str]:
+    """
+    動態檢測欄位名稱，支援中文和英文欄位名稱
+    使用 etmall_fields_mapping.json 進行中英文欄位名稱映射比對
+    
+    Args:
+        df: DataFrame
+        possible_names: 可能的欄位名稱列表
+        fields_mapping: 欄位映射配置字典
+        
+    Returns:
+        找到的欄位名稱，如果都沒找到則返回 None
+    """
+    # 首先檢查直接匹配
+    for name in possible_names:
+        if name in df.columns:
+            return name
+    
+    # 如果沒有直接匹配，使用 fields_mapping 進行映射比對
+    if fields_mapping:
+        for name in possible_names:
+            # 在 fields_mapping 中尋找對應的欄位配置
+            for field_key, field_config in fields_mapping.items():
+                zh_name = field_config.get('zh_name', '')
+                if zh_name == name or field_key == name:
+                    # 檢查映射的中文名稱是否在 DataFrame 中
+                    if zh_name in df.columns:
+                        logging.info(f"通過映射找到欄位：'{name}' -> '{zh_name}'")
+                        return zh_name
+                    # 檢查映射的英文名稱是否在 DataFrame 中
+                    elif field_key in df.columns:
+                        logging.info(f"通過映射找到欄位：'{name}' -> '{field_key}'")
+                        return field_key
+    
+    return None
 
 def create_products_dataframe(product_master_dict: Dict[str, Any]) -> pd.DataFrame:
     """
@@ -206,12 +243,13 @@ def find_latest_enriched_file(input_dir: Path) -> Optional[Path]:
     logging.info(f'找到最新檔案：{latest_file.name}')
     return latest_file
 
-def load_orders_data(file_path: Path) -> pd.DataFrame:
+def load_orders_data(file_path: Path, fields_mapping: Dict[str, Any] = None) -> pd.DataFrame:
     """
     載入訂單資料
     
     Args:
         file_path: 訂單檔案路徑
+        fields_mapping: 欄位映射配置字典
         
     Returns:
         訂單 DataFrame
@@ -220,18 +258,22 @@ def load_orders_data(file_path: Path) -> pd.DataFrame:
         df_orders = pd.read_csv(file_path, dtype=str)
         logging.info(f'已讀取訂單資料，總共 {len(df_orders)} 筆')
         
-        # 檢查必要欄位
-        if 'seller_product_sn' not in df_orders.columns:
-            logging.error("訂單資料中沒有 'seller_product_sn' 欄位，無法進行產品匹配")
+        # 動態檢測廠商商品號碼欄位名稱，使用欄位映射配置
+        seller_product_sn_field = detect_field_name(df_orders, ['廠商商品號碼', 'seller_product_sn'], fields_mapping)
+        
+        if seller_product_sn_field is None:
+            logging.error("訂單資料中沒有找到 '廠商商品號碼' 或 'seller_product_sn' 欄位，無法進行產品匹配")
             return pd.DataFrame()
         
-        # 確保 seller_product_sn 欄位為字串類型並處理空值
-        df_orders['seller_product_sn'] = df_orders['seller_product_sn'].astype(str)
-        df_orders['seller_product_sn'] = df_orders['seller_product_sn'].replace('nan', '')
+        logging.info(f"使用欄位 '{seller_product_sn_field}' 作為產品匹配的 key")
         
-        # 統計有效的 seller_product_sn
-        valid_sns = df_orders[df_orders['seller_product_sn'] != '']['seller_product_sn'].nunique()
-        logging.info(f'有效的 seller_product_sn 數量：{valid_sns}')
+        # 確保廠商商品號碼欄位為字串類型並處理空值
+        df_orders[seller_product_sn_field] = df_orders[seller_product_sn_field].astype(str)
+        df_orders[seller_product_sn_field] = df_orders[seller_product_sn_field].replace('nan', '')
+        
+        # 統計有效的廠商商品號碼
+        valid_sns = df_orders[df_orders[seller_product_sn_field] != ''][seller_product_sn_field].nunique()
+        logging.info(f'有效的廠商商品號碼數量：{valid_sns}')
         
         return df_orders
         
@@ -239,19 +281,27 @@ def load_orders_data(file_path: Path) -> pd.DataFrame:
         logging.exception(f'錯誤：讀取訂單檔案失敗：{file_path.name}')
         return pd.DataFrame()
 
-def merge_orders_with_products(df_orders: pd.DataFrame, df_products: pd.DataFrame) -> pd.DataFrame:
+def merge_orders_with_products(df_orders: pd.DataFrame, df_products: pd.DataFrame, fields_mapping: Dict[str, Any] = None) -> pd.DataFrame:
     """
     將訂單資料與產品主檔進行匹配
     
     Args:
         df_orders: 訂單 DataFrame
         df_products: 產品 DataFrame
+        fields_mapping: 欄位映射配置字典
         
     Returns:
         匹配後的 DataFrame
     """
     if df_orders.empty or df_products.empty:
         logging.error("訂單資料或產品資料為空，無法進行匹配")
+        return df_orders
+    
+    # 動態檢測廠商商品號碼欄位名稱，使用欄位映射配置
+    seller_product_sn_field = detect_field_name(df_orders, ['廠商商品號碼', 'seller_product_sn'], fields_mapping)
+    
+    if seller_product_sn_field is None:
+        logging.error("訂單資料中沒有找到 '廠商商品號碼' 或 'seller_product_sn' 欄位，無法進行產品匹配")
         return df_orders
     
     # 準備要合併的產品欄位 (不包含 barcode，因為它用於匹配)
@@ -273,13 +323,14 @@ def merge_orders_with_products(df_orders: pd.DataFrame, df_products: pd.DataFram
     logging.info(f"訂單筆數：{len(df_orders)}")
     logging.info(f"產品筆數：{len(df_products)}")
     logging.info(f"將要合併的產品欄位：{available_product_columns}")
+    logging.info(f"使用欄位 '{seller_product_sn_field}' 作為匹配 key")
     
     # 執行 left join，保留所有訂單資料
     try:
         df_matched = pd.merge(
             df_orders,
             df_products[merge_columns],
-            left_on='seller_product_sn',
+            left_on=seller_product_sn_field,
             right_on='barcode',
             how='left'
         )
@@ -310,16 +361,35 @@ def merge_orders_with_products(df_orders: pd.DataFrame, df_products: pd.DataFram
             logging.info(f"匹配失敗：{unmatched_count} 筆")
             
             if unmatched_count > 0:
-                # 顯示部分未匹配的 seller_product_sn
+                # 顯示部分未匹配的廠商商品號碼
                 unmatched_mask = df_matched[check_column].isna() | (df_matched[check_column] == '')
-                unmatched_sns = df_matched[unmatched_mask]['seller_product_sn'].unique()
+                unmatched_sns = df_matched[unmatched_mask][seller_product_sn_field].unique()
                 sample_size = min(10, len(unmatched_sns))
-                logging.warning(f"部分未匹配的 seller_product_sn（前{sample_size}筆）：{list(unmatched_sns[:sample_size])}")
+                logging.warning(f"部分未匹配的廠商商品號碼（前{sample_size}筆）：{list(unmatched_sns[:sample_size])}")
         else:
             logging.warning("無法找到合適的欄位來統計匹配結果")
         
         # 填充空值
         df_matched = df_matched.fillna('')
+        
+        # 將產品相關的英文欄位名稱轉換為中文欄位名稱，以便 06 腳本進行映射
+        if fields_mapping:
+            logging.info("開始轉換產品欄位名稱為中文...")
+            en_to_zh_mapping = {}
+            for en_col, config in fields_mapping.items():
+                zh_name = config.get('zh_name')
+                if zh_name and en_col in df_matched.columns:
+                    en_to_zh_mapping[en_col] = zh_name
+            
+            # 特殊處理 cost 欄位，直接重命名為 purchase_cost
+            if 'cost' in df_matched.columns:
+                en_to_zh_mapping['cost'] = 'purchase_cost'
+                logging.info(f"特殊處理：將 'cost' 欄位重命名為 'purchase_cost'")
+            
+            # 重命名欄位
+            if en_to_zh_mapping:
+                df_matched = df_matched.rename(columns=en_to_zh_mapping)
+                logging.info(f"已將以下欄位轉換為中文名稱：{list(en_to_zh_mapping.keys())}")
         
         logging.info("產品匹配完成")
         return df_matched
@@ -384,6 +454,7 @@ def main():
     input_dir = project_root / 'temp' / 'etmall'
     output_dir = project_root / 'temp' / 'etmall'
     product_master_file = project_root / 'config' / 'products.yaml'
+    fields_mapping_file = project_root / 'config' / 'etmall_fields_mapping.json'
 
     # 檢查目錄和檔案
     if not input_dir.exists() or not input_dir.is_dir():
@@ -397,6 +468,10 @@ def main():
     if not product_master_file.exists():
         logging.error(f'錯誤：找不到產品主檔 {product_master_file}')
         sys.exit(1)
+        
+    if not fields_mapping_file.exists():
+        logging.error(f'錯誤：找不到欄位映射檔案 {fields_mapping_file}')
+        sys.exit(1)
 
     # 清除舊的匹配檔案
     logging.info("清除舊的匹配檔案...")
@@ -405,6 +480,15 @@ def main():
     logging.info(f'讀取輸入目錄：{input_dir}')
     logging.info(f'輸出目錄：{output_dir}')
     logging.info(f'產品主檔：{product_master_file}')
+    logging.info(f'欄位映射檔案：{fields_mapping_file}')
+
+    # 載入欄位映射配置
+    logging.info("\n=== 載入欄位映射配置 ===")
+    fields_mapping = load_yaml_config(fields_mapping_file)
+    if not fields_mapping:
+        logging.error('無法載入欄位映射配置，停止執行')
+        sys.exit(1)
+    logging.info(f"已載入欄位映射配置，包含 {len(fields_mapping)} 個欄位定義")
 
     # 載入產品主檔
     logging.info("\n=== 載入產品主檔 ===")
@@ -428,15 +512,15 @@ def main():
     if latest_enriched_file is None:
         sys.exit(1)
 
-    # 載入訂單資料
-    df_orders = load_orders_data(latest_enriched_file)
+    # 載入訂單資料，傳入欄位映射配置
+    df_orders = load_orders_data(latest_enriched_file, fields_mapping)
     if df_orders.empty:
         logging.error('無法載入訂單資料，停止執行')
         sys.exit(1)
 
-    # 執行產品匹配
+    # 執行產品匹配，傳入欄位映射配置
     logging.info("\n=== 執行產品匹配 ===")
-    df_matched = merge_orders_with_products(df_orders, df_products)
+    df_matched = merge_orders_with_products(df_orders, df_products, fields_mapping)
 
     # 儲存結果
     logging.info("\n=== 儲存結果 ===")

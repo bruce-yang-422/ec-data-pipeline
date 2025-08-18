@@ -40,17 +40,14 @@ class MomoShippingCleaner:
         
         # 檔案路徑
         self.mapping_path = self.project_root / "config" / "a1102_momo_fields_mapping.json"
-        self.source_dir = self.project_root / "temp" / "momo"
-        self.output_dir = self.project_root / "data_processed" / "merged"
+        self.source_dir = self.project_root / "data_raw" / "momo"
+        self.output_dir = self.project_root / "temp" / "momo"
         self.output_path = self.output_dir / "momo_shipping_orders_cleaned.csv"
         self.logs_dir = self.project_root / "logs"
         
         # 確保目錄存在
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
-        
-        # A1106 中文欄位對應將從 mapping 檔案動態載入
-        self.a1106_column_mapping = {}
         
         # 設定日誌
         self.setup_logging()
@@ -88,120 +85,19 @@ class MomoShippingCleaner:
             # 根據 mapping JSON 中的 "order" 值對欄位進行排序
             columns = sorted(mapping.keys(), key=lambda k: int(mapping[k]["order"]))
             
-            # 建立 A1106 中文欄位對應 (從 mapping 取得 zh_name)
-            self.a1106_column_mapping = {v["zh_name"]: k for k, v in mapping.items() if "zh_name" in v}
-            
             self.logger.info(f"載入 mapping 配置：{len(mapping)} 個欄位")
-            self.logger.info(f"建立 A1106 欄位對應：{len(self.a1106_column_mapping)} 個對應")
             return mapping, columns
             
         except Exception as e:
             self.logger.error(f"載入 mapping 失敗：{e}")
             raise
     
-    def detect_file_format(self, file_path):
-        """偵測檔案格式 (A1102 vs A1106)"""
-        try:
-            # 讀取第一行來判斷格式
-            with open(file_path, 'r', encoding='utf-8-sig') as f:
-                header = f.readline().strip()
-            
-            # 檢查是否包含 A1106 特有的中文欄位 (根據 mapping 動態判斷)
-            header_fields = [field.strip() for field in header.split(',')]
-            chinese_fields_in_header = sum(1 for field in header_fields if field in self.a1106_column_mapping)
-            
-            # 如果有超過一半的欄位符合中文欄位對應，判斷為 A1106
-            if chinese_fields_in_header > len(header_fields) * 0.5:
-                return "A1106"
-            else:
-                return "A1102"
-                
-        except Exception as e:
-            self.logger.warning(f"無法偵測檔案格式：{file_path} - {e}")
-            return "A1102"  # 預設為 A1102
-    
-    def convert_a1106_to_a1102(self, df):
-        """將 A1106 格式轉換為 A1102 標準格式"""
-        self.logger.info("轉換 A1106 格式為 A1102...")
-        
-        # 重新命名欄位
-        converted_df = df.rename(columns=self.a1106_column_mapping)
-        
-        # 新增 A1102 特有的自訂欄位
-        # 1. platform - 固定值
-        converted_df["platform"] = "momo"
-        
-        # 2. order_date - 從訂單編號解析
-        def extract_order_date(order_sn):
-            try:
-                # 假設格式：25033102767537-001-001-001
-                # 前6碼：250331 (YYMMDD)
-                date_part = str(order_sn)[:6]
-                if len(date_part) == 6 and date_part.isdigit():
-                    year = 2000 + int(date_part[:2])
-                    month = int(date_part[2:4])
-                    day = int(date_part[4:6])
-                    return f"{year}-{month:02d}-{day:02d}"
-                return ""
-            except:
-                return ""
-        
-        converted_df["order_date"] = converted_df["order_sn"].apply(extract_order_date)
-        
-        # 3. order_sn_main - 從訂單編號解析主序號
-        def extract_order_sn_main(order_sn):
-            try:
-                # 取前13碼：25033102767537
-                return str(order_sn).split('-')[0]
-            except:
-                return str(order_sn)
-        
-        converted_df["order_sn_main"] = converted_df["order_sn"].apply(extract_order_sn_main)
-        
-        # 4. order_line_number, order_sub_sequence 和 order_detail_sequence - 從訂單編號解析
-        def extract_sequence_parts(order_sn):
-            try:
-                parts = str(order_sn).split('-')
-                # Ensure all three parts are extracted, defaulting to "001" if missing
-                order_line = parts[1] if len(parts) > 1 else "001"
-                sub_seq = parts[2] if len(parts) > 2 else "001"
-                detail_seq = parts[3] if len(parts) > 3 else "001"
-                return pd.Series([order_line, sub_seq, detail_seq])
-            except:
-                return pd.Series(["001", "001", "001"]) # Default to "001" for all if error
-        
-        # Apply the function and assign to respective columns
-        converted_df[['order_line_number', 'order_sub_sequence', 'order_detail_sequence']] = \
-            converted_df["order_sn"].apply(extract_sequence_parts)
-
-        # 5. is_abnormal_order - 根據 order_sub_sequence 和 order_detail_sequence 判斷
-        def is_abnormal_order(row):
-            try:
-                # 根據說明，只有 order_sub_sequence 和 order_detail_sequence 不是 "001" 才算異常
-                # order_line_number (第一個001) 不用於判斷異常
-                sub_seq = str(row.get('order_sub_sequence', '001'))
-                detail_seq = str(row.get('order_detail_sequence', '001'))
-                
-                # 如果 order_sub_sequence 或 order_detail_sequence 其中一個不是 "001"，就是異常訂單
-                return not (sub_seq == "001" and detail_seq == "001")
-            except:
-                return True # Default to abnormal if there's an error
-        
-        # 使用 apply 時傳入整個 row，這樣可以訪問其他欄位
-        converted_df["is_abnormal_order"] = converted_df.apply(is_abnormal_order, axis=1)
-        
-        # 6. key_for_merge
-        converted_df["key_for_merge"] = "momo_" + converted_df["order_sn"].astype(str)
-        
-        self.logger.info(f"A1106 轉換完成：{len(converted_df)} 筆資料")
-        return converted_df
+    # 移除 A1106 相關函數，因為新腳本只處理 CSV 檔案
     
     def read_csv_files(self, mapping):
-        """讀取 A1102_2, A1102_3 和 A1106 檔案，支援 csv/xls/xlsx"""
-        # 搜尋各種格式的檔案
-        patterns = ["A1102_2_*.csv", "A1102_2_*.xls", "A1102_2_*.xlsx",
-                    "A1102_3_*.csv", "A1102_3_*.xls", "A1102_3_*.xlsx",
-                    "A1106_*.csv", "A1106_*.xls", "A1106_*.xlsx"]
+        """讀取 A1102 檔案，支援新的命名格式"""
+        # 搜尋 A1102 開頭的 CSV 檔案（新命名格式）
+        patterns = ["A1102_2_超商取貨_*.csv", "A1102_3_第三方物流_*.csv"]
         all_files = []
         for pattern in patterns:
             all_files.extend(glob(str(self.source_dir / pattern)))
@@ -211,11 +107,10 @@ class MomoShippingCleaner:
             return pd.DataFrame()
 
         # 統計各類型檔案數量
-        def count_files(suffix):
-            return len([f for f in all_files if f.lower().endswith(suffix)])
-        self.logger.info(f"找到 {count_files('.csv')} 個 CSV 檔案")
-        self.logger.info(f"找到 {count_files('.xls')} 個 XLS 檔案")
-        self.logger.info(f"找到 {count_files('.xlsx')} 個 XLSX 檔案")
+        def count_files(prefix):
+            return len([f for f in all_files if Path(f).name.startswith(prefix)])
+        self.logger.info(f"找到 {count_files('A1102_2_超商取貨_')} 個超商取貨檔案")
+        self.logger.info(f"找到 {count_files('A1102_3_第三方物流_')} 個第三方物流檔案")
 
         # 建立中文到英文的欄位對應
         zh_to_en = {v["zh_name"]: k for k, v in mapping.items() if "zh_name" in v}
@@ -224,47 +119,33 @@ class MomoShippingCleaner:
         for file_path in all_files:
             try:
                 file_name = Path(file_path).name
-                file_format = self.detect_file_format(file_path) if file_path.lower().endswith('.csv') else "A1102"  # excel 檔預設 A1102
-                self.logger.info(f"處理檔案：{file_name} (格式：{file_format})")
+                self.logger.info(f"處理檔案：{file_name}")
 
-                # 根據副檔名選擇讀取方式
-                if file_path.lower().endswith('.csv'):
-                    df = None
-                    encodings = ['utf-8-sig', 'utf-8', 'cp950', 'big5', 'gbk', 'gb2312']
-                    for encoding in encodings:
-                        try:
-                            df = pd.read_csv(file_path, dtype=str, encoding=encoding).fillna("")
-                            self.logger.info(f"成功使用編碼：{encoding}")
-                            break
-                        except UnicodeDecodeError:
-                            continue
-                        except Exception as e:
-                            self.logger.warning(f"編碼 {encoding} 讀取失敗：{e}")
-                            continue
-                    if df is None:
-                        self.logger.error(f"無法讀取檔案：{file_name}，所有編碼都失敗")
-                        continue
-                else:
-                    # excel 檔案
+                # 讀取 CSV 檔案
+                df = None
+                encodings = ['utf-8-sig', 'utf-8', 'cp950', 'big5', 'gbk', 'gb2312']
+                for encoding in encodings:
                     try:
-                        df = pd.read_excel(file_path, dtype=str).fillna("")
-                        self.logger.info(f"成功讀取 Excel 檔案：{file_name}")
-                    except Exception as e:
-                        self.logger.error(f"無法讀取 Excel 檔案：{file_name} - {e}")
+                        df = pd.read_csv(file_path, dtype=str, encoding=encoding).fillna("")
+                        self.logger.info(f"成功使用編碼：{encoding}")
+                        break
+                    except UnicodeDecodeError:
                         continue
+                    except Exception as e:
+                        self.logger.warning(f"編碼 {encoding} 讀取失敗：{e}")
+                        continue
+                if df is None:
+                    self.logger.error(f"無法讀取檔案：{file_name}，所有編碼都失敗")
+                    continue
 
-                # 根據檔案格式進行不同處理
-                if file_format == "A1106":
-                    df = self.convert_a1106_to_a1102(df)
-                    data_source = 'A1106'
+                # 根據檔案名稱判斷資料來源
+                df = df.rename(columns=zh_to_en)
+                if file_name.startswith("A1102_2_超商取貨_"):
+                    data_source = 'A1102_2'
+                elif file_name.startswith("A1102_3_第三方物流_"):
+                    data_source = 'A1102_3'
                 else:
-                    df = df.rename(columns=zh_to_en)
-                    if file_name.startswith("A1102_2_"):
-                        data_source = 'A1102_2'
-                    elif file_name.startswith("A1102_3_"):
-                        data_source = 'A1102_3'
-                    else:
-                        data_source = 'A1102'
+                    data_source = 'A1102'
 
                 if 'order_sn' in df.columns:
                     df = df[df['order_sn'].str.strip() != ""]
@@ -288,21 +169,19 @@ class MomoShippingCleaner:
         return combined_df
     
     def merge_data_by_priority(self, df):
-        """按優先級合併資料：A1102_3 > A1106 > A1102_2"""
+        """按優先級合併資料：A1102_3 > A1102_2"""
         if 'data_source' not in df.columns or 'order_sn' not in df.columns:
             return df
             
         # 分離不同資料來源
         a1102_2_df = df[df['data_source'] == 'A1102_2'].copy()
         a1102_3_df = df[df['data_source'] == 'A1102_3'].copy()
-        a1106_df = df[df['data_source'] == 'A1106'].copy()
         
         self.logger.info("開始按優先級合併資料...")
         self.logger.info(f"A1102_2: {len(a1102_2_df)} 筆")
         self.logger.info(f"A1102_3: {len(a1102_3_df)} 筆") 
-        self.logger.info(f"A1106: {len(a1106_df)} 筆")
         
-        # 按優先級合併：A1102_3 > A1106 > A1102_2
+        # 按優先級合併：A1102_3 > A1102_2
         merged_df = pd.DataFrame()
         used_orders = set()
         
@@ -312,15 +191,7 @@ class MomoShippingCleaner:
             used_orders.update(a1102_3_df['order_sn'].values)
             self.logger.info(f"加入 A1102_3 資料：{len(a1102_3_df)} 筆")
         
-        # 第二優先：A1106 (排除已有的訂單)
-        if not a1106_df.empty:
-            a1106_unique = a1106_df[~a1106_df['order_sn'].isin(used_orders)]
-            if not a1106_unique.empty:
-                merged_df = pd.concat([merged_df, a1106_unique], ignore_index=True)
-                used_orders.update(a1106_unique['order_sn'].values)
-                self.logger.info(f"加入 A1106 獨有資料：{len(a1106_unique)} 筆")
-        
-        # 第三優先：A1102_2 (排除已有的訂單)
+        # 第二優先：A1102_2 (排除已有的訂單)
         if not a1102_2_df.empty:
             a1102_2_unique = a1102_2_df[~a1102_2_df['order_sn'].isin(used_orders)]
             if not a1102_2_unique.empty:

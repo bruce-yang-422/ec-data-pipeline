@@ -23,10 +23,11 @@ from pathlib import Path
 import sys
 import shutil
 import re
-import json
+
 from datetime import datetime
 from typing import Optional, Tuple, List, Any, Dict
 import logging
+import hashlib
 
 def setup_logging(project_root: Path):
     """
@@ -55,8 +56,14 @@ def setup_logging(project_root: Path):
         ]
     )
 
-# 直接在腳本中定義欄位配置
-FIELD_CONFIG = {
+# 報表類型識別關鍵字
+REPORT_TYPE_IDENTIFIERS = {
+    "訂單明細報表": ["客戶名稱", "客戶電話", "室內電話", "配送地址", "出貨指示日"],
+    "訂單銷售報表": ["訂單日期", "訂單編號", "項次", "配送狀態", "訂單狀態"]
+}
+
+# 訂單明細報表欄位配置（原有格式）
+ORDER_DETAIL_FIELD_CONFIG = {
     "訂單號碼": {"type": "STRING"},
     "訂單項次": {"type": "INT64"},
     "併單序號": {"type": "STRING"},
@@ -77,7 +84,7 @@ FIELD_CONFIG = {
     "配送地址": {"type": "STRING"},
     "貨運公司": {"type": "STRING"},
     "配送單號": {"type": "STRING"},
-    "出貨指示日": {"type": "DATE"},
+    "出貨指示日": {"type": "TIMESTAMP"},
     "要求配送日": {"type": "DATE"},
     "要求配送時間": {"type": "STRING"},
     "備註": {"type": "STRING"},
@@ -89,6 +96,217 @@ FIELD_CONFIG = {
     "訂單類別代號": {"type": "STRING"},
     "公司別": {"type": "STRING"},
 }
+
+# 訂單銷售報表欄位配置（新格式）
+ORDER_SALES_FIELD_CONFIG = {
+    "訂單日期": {"type": "TIMESTAMP"},
+    "訂單編號": {"type": "STRING"},
+    "項次": {"type": "INT64"},
+    "配送狀態": {"type": "STRING"},
+    "訂單狀態": {"type": "STRING"},
+    "商品屬性": {"type": "STRING"},
+    "銷售編號": {"type": "STRING"},
+    "子商品銷售編號": {"type": "STRING"},
+    "子商品商品編號": {"type": "STRING"},
+    "配送方式": {"type": "STRING"},
+    "商品名稱": {"type": "STRING"},
+    "顏色": {"type": "STRING"},
+    "款式": {"type": "STRING"},
+    "售價": {"type": "NUMERIC"},
+    "成本": {"type": "NUMERIC"},
+    "數量": {"type": "INT64"},
+    "通路": {"type": "STRING"},
+    "配送確認日": {"type": "DATE"},
+    "公司": {"type": "STRING"},
+}
+
+# 欄位對應：訂單銷售報表 -> 訂單明細報表（統一格式）
+SALES_TO_DETAIL_MAPPING = {
+    "訂單日期": "出貨指示日",
+    "訂單編號": "訂單號碼", 
+    "項次": "訂單項次",
+    "銷售編號": "銷售編號",
+    "子商品商品編號": "商品編號",
+    "商品名稱": "商品名稱",
+    "顏色": "顏色",
+    "款式": "款式",
+    "售價": "售價",
+    "成本": "成本",
+    "數量": "數量",
+    "通路": "通路別",
+    "公司": "公司別",
+    "配送方式": "貨運公司",
+    "商品屬性": "訂單類別",
+}
+
+def detect_report_type(df: pd.DataFrame) -> Tuple[str, Dict[str, Dict[str, str]]]:
+    """
+    根據 DataFrame 的欄位名稱識別報表類型
+    
+    Returns:
+        報表類型名稱和對應的欄位配置
+    """
+    columns = set(df.columns)
+    
+    for report_type, identifiers in REPORT_TYPE_IDENTIFIERS.items():
+        # 檢查是否包含該報表類型的關鍵欄位
+        if all(identifier in columns for identifier in identifiers):
+            if report_type == "訂單明細報表":
+                logging.info(f"識別為：{report_type}（包含客戶資訊）")
+                return report_type, ORDER_DETAIL_FIELD_CONFIG
+            elif report_type == "訂單銷售報表":
+                logging.info(f"識別為：{report_type}（不包含客戶資訊）")
+                return report_type, ORDER_SALES_FIELD_CONFIG
+    
+    # 如果無法識別，預設為訂單明細報表
+    logging.warning("無法識別報表類型，預設為訂單明細報表")
+    return "訂單明細報表", ORDER_DETAIL_FIELD_CONFIG
+
+def clean_sales_report_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    對訂單銷售報表進行基本的資料清理，保留原始格式
+    特別處理：將「訂單日期」拆分為「訂單日期」和「下單時間」兩個欄位
+    """
+    df_cleaned = df.copy()
+    
+    # 處理訂單日期欄位拆分
+    if '訂單日期' in df_cleaned.columns:
+        logging.info('正在拆分訂單日期欄位為日期和時間...')
+        
+        # 將訂單日期轉換為 datetime
+        df_cleaned['訂單日期_原始'] = df_cleaned['訂單日期'].astype(str)
+        
+        # 嘗試解析日期時間
+        try:
+            # 處理不同的日期時間格式
+            datetime_series = pd.to_datetime(df_cleaned['訂單日期_原始'], errors='coerce')
+            
+            # 拆分為日期和時間
+            df_cleaned['訂單日期'] = datetime_series.dt.date.astype(str)  # 只要日期部分
+            df_cleaned['下單時間'] = datetime_series.dt.time.astype(str)  # 只要時間部分
+            
+            # 移除臨時欄位
+            df_cleaned = df_cleaned.drop('訂單日期_原始', axis=1)
+            
+            # 重新排列欄位順序，讓下單時間緊接在訂單日期後面
+            cols = df_cleaned.columns.tolist()
+            order_date_idx = cols.index('訂單日期')
+            order_time_idx = cols.index('下單時間')
+            
+            # 移除下單時間從原位置
+            cols.pop(order_time_idx)
+            # 插入到訂單日期後面
+            cols.insert(order_date_idx + 1, '下單時間')
+            
+            df_cleaned = df_cleaned[cols]
+            
+            logging.info(f'成功拆分訂單日期欄位，共處理 {len(df_cleaned)} 筆資料')
+            
+        except Exception as e:
+            logging.warning(f'日期時間拆分時發生錯誤：{e}，保留原始格式')
+    
+    # 基本的資料清理
+    for col in df_cleaned.columns:
+        if df_cleaned[col].dtype == 'object':
+            # 清理文字欄位
+            df_cleaned[col] = df_cleaned[col].astype(str).apply(clean_text)
+    
+    # 移除完全空白的列
+    df_cleaned = df_cleaned.dropna(how='all')
+    
+    # 重置索引
+    df_cleaned = df_cleaned.reset_index(drop=True)
+    
+    return df_cleaned
+
+def clean_detail_report_data(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    對訂單明細報表進行基本的資料清理，保留原始格式
+    特別處理：將包含日期時間的欄位拆分為日期和時間兩個欄位
+    """
+    df_cleaned = df.copy()
+    
+    # 定義需要拆分的日期時間欄位
+    datetime_fields = [
+        '出貨指示日',
+        '要求配送日',
+        '預計入庫日',
+        '預計配送日'
+    ]
+    
+    # 處理每個日期時間欄位
+    for field in datetime_fields:
+        if field in df_cleaned.columns:
+            logging.info(f'正在拆分 {field} 欄位為日期和時間...')
+            
+            # 將欄位轉換為字串
+            df_cleaned[f'{field}_原始'] = df_cleaned[field].astype(str)
+            
+            # 嘗試解析日期時間
+            try:
+                # 處理不同的日期時間格式
+                datetime_series = pd.to_datetime(df_cleaned[f'{field}_原始'], errors='coerce')
+                
+                # 拆分為日期和時間
+                df_cleaned[field] = datetime_series.dt.date.astype(str)  # 只要日期部分
+                df_cleaned[f'{field}_時間'] = datetime_series.dt.time.astype(str)  # 只要時間部分
+                
+                # 移除臨時欄位
+                df_cleaned = df_cleaned.drop(f'{field}_原始', axis=1)
+                
+                # 重新排列欄位順序，讓時間欄位緊接在日期欄位後面
+                cols = df_cleaned.columns.tolist()
+                date_idx = cols.index(field)
+                time_idx = cols.index(f'{field}_時間')
+                
+                # 移除時間欄位從原位置
+                cols.pop(time_idx)
+                # 插入到日期欄位後面
+                cols.insert(date_idx + 1, f'{field}_時間')
+                
+                df_cleaned = df_cleaned[cols]
+                
+                logging.info(f'成功拆分 {field} 欄位，共處理 {len(df_cleaned)} 筆資料')
+                
+            except Exception as e:
+                logging.warning(f'{field} 日期時間拆分時發生錯誤：{e}，保留原始格式')
+    
+    # 基本的資料清理
+    for col in df_cleaned.columns:
+        if df_cleaned[col].dtype == 'object':
+            # 清理文字欄位
+            df_cleaned[col] = df_cleaned[col].astype(str).apply(clean_text)
+    
+    # 移除完全空白的列
+    df_cleaned = df_cleaned.dropna(how='all')
+    
+    # 重置索引
+    df_cleaned = df_cleaned.reset_index(drop=True)
+    
+    return df_cleaned
+
+def convert_sales_to_detail_format(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    將訂單銷售報表格式轉換為訂單明細報表格式（統一格式）
+    """
+    df_converted = df.copy()
+    
+    # 重新命名欄位
+    rename_mapping = {}
+    for sales_col, detail_col in SALES_TO_DETAIL_MAPPING.items():
+        if sales_col in df_converted.columns:
+            rename_mapping[sales_col] = detail_col
+    
+    df_converted = df_converted.rename(columns=rename_mapping)
+    logging.info(f"重新命名欄位：{list(rename_mapping.items())}")
+    
+    # 補齊缺失的欄位（設為空值）
+    missing_fields = set(ORDER_DETAIL_FIELD_CONFIG.keys()) - set(df_converted.columns)
+    for field in missing_fields:
+        df_converted[field] = ""
+        logging.info(f"補齊缺失欄位：{field}")
+    
+    return df_converted
 
 def clean_text(text: Any) -> str:
     """
@@ -133,7 +351,7 @@ def clean_gift_info(text: Any) -> str:
     return text
 
 
-def apply_mapping_and_clean(df: pd.DataFrame, mapping: Dict[str, Dict[str, str]]) -> pd.DataFrame:
+def apply_mapping_and_clean(df: pd.DataFrame, mapping: Dict[str, Dict[str, str]], report_type: str = "訂單明細報表") -> pd.DataFrame:
     """
     根據 mapping 檔案對 DataFrame 進行清理和型別轉換
     """
@@ -151,40 +369,91 @@ def apply_mapping_and_clean(df: pd.DataFrame, mapping: Dict[str, Dict[str, str]]
 
     for col, config in mapping.items():
         if col in df.columns:
-            # 針對「贈品」欄位使用專門的清理函數
-            if col == '贈品':
-                df[col] = df[col].apply(clean_gift_info)
-            else:
-                # 對所有欄位進行文字清理
-                df[col] = df[col].apply(clean_text)
-            
             col_type = config.get('type')
-            try:
-                if col_type == 'INT64' and col in numeric_cols:
-                    converted_series = pd.to_numeric(df[col], errors='coerce')
-                    df[col] = converted_series.astype('Int64', errors='ignore').astype(str).replace('<NA>', '')
-                elif col_type == 'NUMERIC' and col in numeric_cols:
-                    converted_series = pd.to_numeric(df[col], errors='coerce')
-                    df[col] = converted_series.astype(str).replace('nan', '')
-                elif col_type == 'DATE' or col_type == 'TIMESTAMP':
-                    # 使用正規表示式擷取日期部分 (YYYY/MM/DD)
-                    date_pattern = r'(\d{4}/\d{1,2}/\d{1,2})'
-                    df[col] = df[col].str.extract(date_pattern, expand=False).fillna('')
+            
+            # 針對日期和時間欄位，先進行特殊處理，避免資料遺失
+            if col_type in ['DATE', 'TIMESTAMP']:
+                # 先嘗試直接轉換日期，不進行文字清理
+                try:
+                    if col_type == 'DATE':
+                        # 嘗試多種日期格式
+                        date_formats = ['%Y/%m/%d', '%Y-%m-%d', '%Y.%m.%d', '%Y%m%d']
+                        converted_series = pd.to_datetime(df[col], errors='coerce', format='%Y/%m/%d')
+                        
+                        # 如果第一個格式失敗，嘗試其他格式
+                        if converted_series.isna().all():
+                            for fmt in date_formats[1:]:
+                                converted_series = pd.to_datetime(df[col], errors='coerce', format=fmt)
+                                if not converted_series.isna().all():
+                                    break
+                        
+                        df[col] = converted_series.dt.strftime('%Y-%m-%d').fillna('')
+                        
+                    elif col_type == 'TIMESTAMP':
+                        # 嘗試多種日期時間格式
+                        datetime_formats = [
+                            '%Y/%m/%d %H:%M:%S', '%Y/%m/%d %H:%M', '%Y/%m/%d',
+                            '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d',
+                            '%Y.%m.%d %H:%M:%S', '%Y.%m.%d %H:%M', '%Y.%m.%d'
+                        ]
+                        
+                        converted_series = pd.to_datetime(df[col], errors='coerce', format='%Y/%m/%d %H:%M:%S')
+                        
+                        # 如果第一個格式失敗，嘗試其他格式
+                        if converted_series.isna().all():
+                            for fmt in datetime_formats[1:]:
+                                converted_series = pd.to_datetime(df[col], errors='coerce', format=fmt)
+                                if not converted_series.isna().all():
+                                    break
+                        
+                        # 格式化輸出
+                        if converted_series.isna().all():
+                            df[col] = ''
+                        else:
+                            # 檢查是否有時間部分
+                            has_time = df[col].str.contains(r'\d{1,2}:\d{1,2}', na=False)
+                            df[col] = converted_series.dt.strftime('%Y-%m-%d %H:%M:%S').fillna('')
+                            # 如果原始資料沒有時間，只保留日期部分
+                            df.loc[~has_time, col] = converted_series.dt.strftime('%Y-%m-%d 00:00:00').fillna('')
                     
-                    # 將擷取到的日期字串轉換為 YYYY-MM-DD 格式
-                    converted_series = pd.to_datetime(df[col], errors='coerce', format='%Y/%m/%d')
-                    df[col] = converted_series.dt.strftime('%Y-%m-%d').fillna('')
-                else:
-                    df[col] = df[col].replace('nan', '')
-            except Exception as e:
-                logging.error(f"欄位 '{col}' 的型別轉換失敗 ({col_type}) - {e}")
-                df[col] = df[col].astype(str).replace('nan', '')
+                    logging.info(f"欄位 '{col}' 日期處理完成，成功轉換 {len(df[col].str.strip().ne(''))} 筆資料")
+                    
+                except Exception as e:
+                    logging.error(f"欄位 '{col}' 的日期轉換失敗 ({col_type}) - {e}")
+                    # 如果日期轉換失敗，進行基本的文字清理
+                    df[col] = df[col].apply(clean_text)
+            
+            else:
+                # 針對非日期欄位，進行正常的文字清理
+                try:
+                    if col == '贈品':
+                        df[col] = df[col].apply(clean_gift_info)
+                    else:
+                        df[col] = df[col].apply(clean_text)
+                    
+                    # 處理數字欄位
+                    if col_type == 'INT64' and col in numeric_cols:
+                        converted_series = pd.to_numeric(df[col], errors='coerce')
+                        df[col] = converted_series.astype('Int64', errors='ignore').astype(str).replace('<NA>', '')
+                    elif col_type == 'NUMERIC' and col in numeric_cols:
+                        converted_series = pd.to_numeric(df[col], errors='coerce')
+                        df[col] = converted_series.astype(str).replace('nan', '')
+                    else:
+                        df[col] = df[col].replace('nan', '')
+                        
+                except Exception as e:
+                    logging.error(f"欄位 '{col}' 的型別轉換失敗 ({col_type}) - {e}")
+                    df[col] = df[col].astype(str).replace('nan', '')
     
     # 確保 order_line_uid 被正確生成
     # 這裡假設你的原始 Excel 檔案已經有「訂單號碼」和「訂單項次」
     if '訂單號碼' in df.columns and '訂單項次' in df.columns:
         df['訂單唯一鍵'] = df['訂單號碼'].astype(str) + '-' + df['訂單項次'].astype(str)
         logging.info("已生成 '訂單唯一鍵' 欄位")
+    
+    # 新增 platform 欄位，固定為 'etmall'
+    df['platform'] = 'etmall'
+    logging.info("已新增 'platform' 欄位，設定為 'etmall'")
     
     # 重新排列欄位順序，與 FIELD_CONFIG 中的順序一致
     ordered_columns = list(mapping.keys())
@@ -193,43 +462,58 @@ def apply_mapping_and_clean(df: pd.DataFrame, mapping: Dict[str, Dict[str, str]]
     
     return df
 
-def extract_ship_date_from_dataframe(df: pd.DataFrame, excel_file_path: Path) -> Optional[str]:
+def extract_ship_date_range_from_dataframe(df: pd.DataFrame, excel_file_path: Path) -> Tuple[str, str]:
     """
-    從 DataFrame 中提取出貨指示日，若失敗則使用檔案修改日期
+    從 DataFrame 中提取出貨指示日的範圍（最早起始日和最晚結束日）
+    返回：(最早日期, 最晚日期)
     """
-    possible_cols = ['出貨指示日']
+    possible_cols = ['出貨指示日', '訂單日期']
     
     for col in possible_cols:
         if col in df.columns:
-            # 使用正規表示式擷取日期部分
-            date_pattern = r'(\d{4}/\d{1,2}/\d{1,2})'
-            extracted_dates = df[col].astype(str).str.extract(date_pattern, expand=False)
+            # 嘗試多種日期格式
+            date_patterns = [
+                r'(\d{4}/\d{1,2}/\d{1,2})',  # 2024/1/1
+                r'(\d{4}-\d{1,2}-\d{1,2})',  # 2024-1-1
+                r'(\d{4}\.\d{1,2}\.\d{1,2})',  # 2024.1.1
+                r'(\d{4}\d{2}\d{2})',  # 20240101
+            ]
             
-            df_temp = pd.to_datetime(extracted_dates, errors='coerce', format='%Y/%m/%d')
-            valid_dates = df_temp.dropna()
-            
-            if not valid_dates.empty:
-                earliest_date = valid_dates.min()
-                return earliest_date.strftime('%Y%m%d')
+            for pattern in date_patterns:
+                extracted_dates = df[col].astype(str).str.extract(pattern, expand=False)
+                df_temp = pd.to_datetime(extracted_dates, errors='coerce')
+                valid_dates = df_temp.dropna()
+                
+                if not valid_dates.empty:
+                    earliest_date = valid_dates.min()
+                    latest_date = valid_dates.max()
+                    logging.info(f'成功從欄位 "{col}" 提取出貨指示日範圍：{earliest_date.strftime("%Y%m%d")} 到 {latest_date.strftime("%Y%m%d")}')
+                    return earliest_date.strftime('%Y%m%d'), latest_date.strftime('%Y%m%d')
     
     logging.warning(f'無法從 DataFrame 提取出貨指示日，將嘗試使用檔案修改日期：{excel_file_path.name}')
     try:
         # 使用檔案的修改日期
         file_mtime = datetime.fromtimestamp(excel_file_path.stat().st_mtime)
-        logging.info(f'成功從檔案中提取修改日期：{file_mtime.strftime("%Y%m%d")}')
-        return file_mtime.strftime('%Y%m%d')
+        current_date = file_mtime.strftime('%Y%m%d')
+        logging.info(f'成功從檔案中提取修改日期：{current_date}')
+        return current_date, current_date
     except Exception as e:
         logging.error(f'無法從檔案中提取修改日期：{e}')
         logging.warning(f'無法從 DataFrame 或檔案中提取出貨指示日，將使用當前日期')
-        return datetime.now().strftime('%Y%m%d')
+        current_date = datetime.now().strftime('%Y%m%d')
+        return current_date, current_date
 
-def generate_filename(shop_name: str, ship_date: str, sequence: int) -> str:
+def generate_filename(shop_name: str, earliest_date: str, latest_date: str, sequence: int, report_type: str = "訂單明細報表") -> str:
     """
-    生成檔案名稱
+    生成檔案名稱，根據報表類型使用不同的命名邏輯
     """
-    return f"{shop_name}_{ship_date}_{sequence:03d}"
+    if report_type == "訂單銷售報表":
+        return f"01_{shop_name}_銷售報表_{earliest_date}_{latest_date}_{sequence:03d}"
+    else:
+        # 訂單明細報表使用原有命名邏輯
+        return f"01_{shop_name}_{earliest_date}_{latest_date}_{sequence:03d}"
 
-def convert_and_backup_file(input_path: Path, output_dir: Path, backup_dir: Path, shop_name: str, sequence: int, mapping: Dict[str, Dict[str, str]]) -> Tuple[bool, Optional[str]]:
+def convert_and_backup_file(input_path: Path, output_dir: Path, backup_dir: Path, shop_name: str, sequence: int) -> Tuple[bool, Optional[str]]:
     """
     將單一 xlsx/xls 檔案轉換為 csv，並備份原始檔案
     返回：(是否成功, 生成的檔案名稱)
@@ -239,18 +523,61 @@ def convert_and_backup_file(input_path: Path, output_dir: Path, backup_dir: Path
         df = pd.read_excel(input_path, dtype=str)
         logging.info(f'共 {len(df)} 筆資料，{len(df.columns)} 欄')
         
-        logging.info('應用欄位映射並清理資料中...')
-        df_cleaned = apply_mapping_and_clean(df, mapping)
+        # 識別報表類型
+        report_type, field_config = detect_report_type(df)
+        
+        if report_type == "訂單銷售報表":
+            logging.info('訂單銷售報表保留原始格式...')
+            # 對於訂單銷售報表，只做基本的資料清理，不做格式轉換
+            df_cleaned = clean_sales_report_data(df)
+        else:
+            logging.info('訂單明細報表，進行日期時間欄位拆分...')
+            # 對於訂單明細報表，先進行日期時間欄位拆分，再應用欄位映射
+            df_cleaned = clean_detail_report_data(df)
+            df_cleaned = apply_mapping_and_clean(df_cleaned, field_config, report_type)
+        
         logging.info('資料清理與轉換完成')
         
-        ship_date = extract_ship_date_from_dataframe(df_cleaned, input_path)
+        ship_date_range = extract_ship_date_range_from_dataframe(df_cleaned, input_path)
+        earliest_date, latest_date = ship_date_range
         
-        output_filename = generate_filename(shop_name, ship_date, sequence) + '.csv'
+        # 根據報表類型生成檔案名稱模式
+        if report_type == "訂單銷售報表":
+            file_pattern = f"{shop_name}_銷售報表_{earliest_date}_{latest_date}_*.csv"
+        else:
+            file_pattern = f"{shop_name}_{earliest_date}_{latest_date}_*.csv"
+        
+        # 檢查是否已存在相同內容的檔案
+        content_hash = hashlib.md5(df_cleaned.to_string(index=False).encode('utf-8')).hexdigest()[:8]
+        existing_files = list(output_dir.glob(file_pattern))
+        
+        for existing_file in existing_files:
+            try:
+                existing_df = pd.read_csv(existing_file, dtype=str)
+                existing_content_hash = hashlib.md5(existing_df.to_string(index=False).encode('utf-8')).hexdigest()[:8]
+                
+                if content_hash == existing_content_hash:
+                    logging.warning(f'發現相同內容的檔案已存在：{existing_file.name}')
+                    logging.warning(f'跳過處理：{input_path.name}')
+                    
+                    # 仍然備份原始檔案，但使用現有檔案的名稱
+                    backup_filename = existing_file.stem + input_path.suffix
+                    backup_path = backup_dir / backup_filename
+                    
+                    shutil.move(str(input_path), str(backup_path))
+                    logging.info(f'已備份原始檔案：{backup_path}')
+                    
+                    return True, existing_file.name
+            except Exception as e:
+                logging.warning(f'檢查檔案 {existing_file} 時發生錯誤：{e}')
+                continue
+        
+        output_filename = generate_filename(shop_name, earliest_date, latest_date, sequence, report_type) + '.csv'
         output_path = output_dir / output_filename
         df_cleaned.to_csv(output_path, index=False, encoding='utf-8-sig')
         logging.info(f'已輸出 CSV：{output_path}')
         
-        backup_filename = generate_filename(shop_name, ship_date, sequence) + input_path.suffix
+        backup_filename = generate_filename(shop_name, earliest_date, latest_date, sequence, report_type) + input_path.suffix
         backup_path = backup_dir / backup_filename
         
         shutil.move(str(input_path), str(backup_path))
@@ -315,8 +642,8 @@ def main():
     success_count = 0
     total_count = len(excel_files)
     
-    # 引入基於出貨日期的流水號計數器
-    date_sequence = {}
+    # 引入基於日期範圍的流水號計數器
+    date_range_sequence = {}
     
     for excel_file in excel_files:
         logging.info(f'\n處理檔案 {success_count + 1}/{total_count}：{excel_file.name}')
@@ -327,21 +654,25 @@ def main():
         
         try:
             temp_df = pd.read_excel(excel_file, dtype=str)
-            ship_date = extract_ship_date_from_dataframe(temp_df, excel_file)
+            ship_date_range = extract_ship_date_range_from_dataframe(temp_df, excel_file)
+            earliest_date, latest_date = ship_date_range
         except Exception as e:
             logging.error(f'讀取檔案失敗：{excel_file} - {e}')
-            # 讀取失敗時，無法取得日期，使用當前日期來確保流水號不衝突
-            ship_date = datetime.now().strftime('%Y%m%d')
+            # 讀取失敗時，使用當前日期來確保流水號不衝突
+            current_date = datetime.now().strftime('%Y%m%d')
+            earliest_date, latest_date = current_date, current_date
         
-        # 根據出貨日期更新流水號
-        if ship_date not in date_sequence:
-            date_sequence[ship_date] = 1
+        # 根據日期範圍更新流水號
+        date_range_key = f"{earliest_date}_{latest_date}"
+        if date_range_key not in date_range_sequence:
+            date_range_sequence[date_range_key] = 1
         else:
-            date_sequence[ship_date] += 1
+            date_range_sequence[date_range_key] += 1
         
-        sequence = date_sequence[ship_date]
+        sequence = date_range_sequence[date_range_key]
+        logging.info(f'檔案流水號：{sequence}')
         
-        success, _ = convert_and_backup_file(excel_file, input_dir, backup_dir, shop_name, sequence, FIELD_CONFIG)
+        success, _ = convert_and_backup_file(excel_file, input_dir, backup_dir, shop_name, sequence)
         
         if success:
             success_count += 1
