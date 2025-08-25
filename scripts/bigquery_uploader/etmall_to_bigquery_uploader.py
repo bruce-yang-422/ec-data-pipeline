@@ -5,7 +5,7 @@ ETMall BigQuery 上傳器
 
 主要功能：
 - 專門上傳 ETMall 訂單資料至 BigQuery
-- 自動抓取最新的 ETMall CSV 檔案
+- 自動抓取最新的 ETMall 商品豐富化 CSV 檔案 (03_etmall_orders_product_enriched_*.csv)
 - 上傳到 shopee-etl-reporting.yichai_etmall_data.etmall_orders_data
 - 自動重複資料檢查與處理
 - 完整的日誌記錄與錯誤追蹤
@@ -24,7 +24,6 @@ import logging
 import glob
 import json
 from datetime import datetime
-from pathlib import Path
 
 # ✅ 將專案根目錄加入 sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -41,17 +40,16 @@ ETMALL_PROJECT = "shopee-etl-reporting"
 def get_csv_pattern():
     """根據當前工作目錄動態設定 CSV 檔案路徑"""
     current_dir = os.getcwd()
-    script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # 如果當前目錄是專案根目錄
     if os.path.basename(current_dir) == "ec-data-pipeline":
-        return "data_processed/merged/06_etmall_orders_bq_formatted_*.csv"
+        return "temp/etmall/etmall_orders_product_enriched_*.csv"
     # 如果當前目錄是 scripts/bigquery_uploader
     elif os.path.basename(current_dir) == "bigquery_uploader":
-        return "../../data_processed/merged/06_etmall_orders_bq_formatted_*.csv"
+        return "../../temp/etmall/etmall_orders_product_enriched_*.csv"
     # 其他情況，嘗試相對路徑
     else:
-        return "../../data_processed/merged/06_etmall_orders_bq_formatted_*.csv"
+        return "../../temp/etmall/etmall_orders_product_enriched_*.csv"
 
 def get_credential_path():
     """根據當前工作目錄動態設定認證檔案路徑"""
@@ -92,38 +90,82 @@ def load_field_mapping():
     except json.JSONDecodeError as e:
         raise ValueError(f"欄位映射檔案格式錯誤：{e}")
 
-def generate_schema_from_mapping(field_mapping: dict[str, dict[str, str]]) -> list[bigquery.SchemaField]:
-    """根據欄位映射生成 BigQuery Schema"""
+def generate_schema_from_csv_columns(csv_columns: list[str]) -> list[bigquery.SchemaField]:
+    """根據實際CSV欄位生成 BigQuery Schema，根據欄位類型設定適當的資料型態"""
     schema: list[bigquery.SchemaField] = []
     
-    # BigQuery 資料類型映射
-    type_mapping = {
-        "String": "STRING",
-        "Integer": "INTEGER", 
-        "Float": "FLOAT",
-        "Date": "DATE",
-        "Datetime": "DATETIME",
-        "Text": "STRING",
-        "Boolean": "BOOLEAN"
+    # 定義欄位類型映射
+    field_type_mapping = {
+        # 日期類型
+        'order_date': 'DATE',
+        'order_time': 'TIME',
+        'created_at': 'DATETIME',
+        'updated_at': 'DATETIME',
+        
+        # 數字類型
+        'quantity': 'INTEGER',
+        'product_spec': 'FLOAT',
+        'product_weight_g': 'FLOAT',
+        
+        # 新台幣金額類型
+        'unit_price': 'NUMERIC',
+        'order_amount': 'NUMERIC',
+        'platform_reconciliation_cost': 'NUMERIC',
+        'supplier_cost': 'NUMERIC',
+        'product_msrp': 'NUMERIC',
+        'product_cost': 'NUMERIC',
+        'total_amount': 'NUMERIC',
+        'discount_amount': 'NUMERIC',
+        
+        # 布林值類型
+        'is_gift': 'BOOLEAN',
+        'shop_shop_status': 'BOOLEAN',
+        'shop_is_shopee_ad_delivery_enabled': 'BOOLEAN',
+        'shop_status': 'BOOLEAN',
+        'is_shopee_ad_delivery_enabled': 'BOOLEAN',
+        
+        # 新增的產品相關欄位
+        'category_level_1': 'STRING',
+        'category_level_2': 'STRING',
+        'brand': 'STRING',
+        'series': 'STRING',
+        'pet_type': 'STRING',
+        'product_name': 'STRING',
+        'item_code': 'STRING',
+        'sku': 'STRING',
+        'tags': 'STRING',
+        'spec': 'STRING',
+        'unit': 'STRING',
+        'origin': 'STRING',
+        'supplier_code': 'STRING',
+        'supplier': 'STRING',
+        
+        # 新增的商店相關欄位
+        'shop_name': 'STRING',
+        'shop_business_model': 'STRING',
+        'location': 'STRING',
+        'phone': 'STRING',
+        'department': 'STRING',
+        'manager': 'STRING',
+        
+        # 其他欄位保持為字串
+        'default': 'STRING'
     }
     
-    # 按 order 欄位排序
-    sorted_fields = sorted(field_mapping.items(), key=lambda x: int(x[1]['order']))
-    
-    for field_name, field_info in sorted_fields:
-        bq_type = type_mapping.get(field_info['type'], 'STRING')
-        # 為了避免資料上傳問題，所有欄位都設為 NULLABLE
-        mode = 'NULLABLE'
+    # 為每個實際存在的欄位生成 Schema
+    for column_name in csv_columns:
+        # 根據欄位名稱決定資料類型
+        if column_name in field_type_mapping:
+            field_type = field_type_mapping[column_name]
+        else:
+            field_type = 'STRING'
         
-        schema.append(bigquery.SchemaField(field_name, bq_type, mode=mode))
-    
-    # 添加 processing_date 欄位
-    schema.append(bigquery.SchemaField("processing_date", "TIMESTAMP", mode="NULLABLE"))
+        schema.append(bigquery.SchemaField(column_name, field_type, mode="NULLABLE"))
     
     return schema
 
 def find_latest_etmall_csv():
-    """自動抓取最新的 ETMall CSV 檔案"""
+    """自動抓取最新的 ETMall 產品資料豐富化 CSV 檔案（腳本 10 輸出）"""
     csv_files = glob.glob(get_csv_pattern())
     if not csv_files:
         raise FileNotFoundError(f"找不到符合模式的 CSV 檔案：{get_csv_pattern()}")
@@ -191,17 +233,13 @@ def main():
     logger.info("=== ETMall 訂單資料上傳至 BigQuery ===")
     logger.info(f"目標資料表：{args.project}.{args.dataset}.{args.table}")
     
-    # 載入欄位映射
+    # 載入欄位映射（用於驗證）
     try:
         field_mapping = load_field_mapping()
         logger.info("✅ 欄位映射載入成功")
     except Exception as e:
         logger.error(f"❌ 載入欄位映射失敗：{e}")
         return 1
-    
-    # 生成 schema
-    schema = generate_schema_from_mapping(field_mapping)
-    logger.info(f"✅ 已生成 BigQuery Schema，包含 {len(schema)} 個欄位")
     
     # 自動抓取最新的 CSV 檔案
     if args.csv:
@@ -210,7 +248,7 @@ def main():
     else:
         try:
             csv_path = find_latest_etmall_csv()
-            logger.info(f"自動抓取最新 CSV 檔案：{csv_path}")
+            logger.info(f"自動抓取最新產品資料豐富化 CSV 檔案（腳本 10 輸出）：{csv_path}")
         except FileNotFoundError as e:
             logger.error(f"❌ 錯誤：{e}")
             return 1
@@ -228,9 +266,9 @@ def main():
         client = get_bq_client(args.credential)
         logger.info("✅ BigQuery 客戶端建立成功")
         
-        # 讀取 CSV 檔案
+        # 讀取 CSV 檔案，設定 keep_default_na=False 避免自動識別 NaN
         logger.info("📖 讀取 CSV 檔案...")
-        df = pd.read_csv(csv_path, dtype=str)
+        df = pd.read_csv(csv_path, dtype=str, keep_default_na=False, na_values=[], na_filter=False)
         logger.info(f"✅ CSV 檔案讀取成功，共 {len(df)} 筆資料")
         
         # 驗證欄位
@@ -250,31 +288,75 @@ def main():
         logger.info("📝 為 CSV 檔案添加 processing_date 欄位...")
         df['processing_date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        # 修正資料類型問題
-        logger.info("🔧 修正資料類型...")
+        # 處理空值：將所有 nan、None、NULL 等值轉換為空字串
+        logger.info("🔧 處理空值，將 nan、None、NULL 轉換為空字串...")
         
-        # 根據映射配置處理資料類型
-        for field_name, field_info in field_mapping.items():
-            if field_name in df.columns:
-                field_type = field_info['type']
-                
-                if field_type == 'Float':
-                    # 處理浮點數欄位
-                    df[field_name] = df[field_name].fillna('0').astype(float).astype(str)
-                elif field_type == 'Integer':
-                    # 處理整數欄位
-                    df[field_name] = df[field_name].fillna('0').astype(float).astype(int).astype(str)
-                elif field_type in ['Date', 'Datetime']:
-                    # 處理日期欄位，保持字串格式
-                    df[field_name] = df[field_name].fillna('').astype(str)
-                else:
-                    # 其他欄位保持字串格式，避免科學記號問題
-                    df[field_name] = df[field_name].fillna('').astype(str).str.replace('.0', '', regex=False).str.replace('nan', '', regex=False)
+        # 先處理 DataFrame 中的空值
+        df = df.replace(['nan', 'None', 'NULL', 'NaN', 'NAN', 'null', 'Null'], '')
+        
+        # 確保所有欄位都是字串類型
+        for col in df.columns:
+            df[col] = df[col].astype(str)
+            # 再次處理，確保轉換後的字串中沒有 'nan' 相關值
+            df[col] = df[col].replace(['nan', 'None', 'NULL', 'NaN', 'NAN', 'null', 'Null'], '')
+        
+        # 檢查是否還有遺漏的空值
+        empty_count = 0
+        for col in df.columns:
+            empty_count += (df[col] == 'nan').sum()
+            empty_count += (df[col] == 'None').sum()
+            empty_count += (df[col] == 'NULL').sum()
+        
+        if empty_count > 0:
+            logger.warning(f"⚠️ 仍有 {empty_count} 個空值需要處理")
+        else:
+            logger.info("✅ 所有空值已正確處理")
+        
+        # 檢查欄位數量
+        logger.info(f"添加 processing_date 後，DataFrame 有 {len(df.columns)} 個欄位")
+        logger.info(f"前5個欄位：{list(df.columns[:5])}")
+        logger.info(f"後5個欄位：{list(df.columns[-5:])}")
         
         # 創建臨時檔案
         temp_csv_path = csv_path.replace('.csv', '_with_processing_date.csv')
-        df.to_csv(temp_csv_path, index=False)
-        logger.info(f"✅ 已創建臨時檔案：{temp_csv_path}")
+        
+        # 保存前再次檢查欄位數量
+        logger.info(f"保存前，DataFrame 有 {len(df.columns)} 個欄位")
+        
+        # 使用更安全的方式保存 CSV，確保空值處理
+        try:
+            df.to_csv(temp_csv_path, index=False, encoding='utf-8-sig', na_rep='')
+            logger.info(f"✅ 已創建臨時檔案：{temp_csv_path}")
+        except Exception as e:
+            logger.error(f"創建臨時檔案失敗：{e}")
+            return 1
+        
+        # 驗證臨時檔案
+        try:
+            temp_df = pd.read_csv(temp_csv_path, encoding='utf-8-sig')
+            logger.info(f"臨時檔案驗證：{len(temp_df.columns)} 個欄位，{len(temp_df)} 行資料")
+            logger.info(f"臨時檔案前5個欄位：{list(temp_df.columns[:5])}")
+            logger.info(f"臨時檔案後5個欄位：{list(temp_df.columns[-5:])}")
+            
+            # 檢查 processing_date 欄位是否存在
+            if 'processing_date' in temp_df.columns:
+                logger.info("✅ processing_date 欄位已正確添加")
+            else:
+                logger.error("❌ processing_date 欄位遺失")
+                return 1
+                
+            # 根據實際欄位生成 Schema
+            schema = generate_schema_from_csv_columns(list(temp_df.columns))
+            logger.info(f"✅ 已生成 BigQuery Schema，包含 {len(schema)} 個欄位")
+            
+            # 顯示 Schema 詳情
+            logger.info("📋 BigQuery Schema 詳情：")
+            for field in schema:
+                logger.info(f"  - {field.name}: {field.field_type} ({field.mode})")
+                
+        except Exception as e:
+            logger.error(f"臨時檔案驗證失敗：{e}")
+            return 1
         
         # 上傳資料
         logger.info(f"📤 開始上傳資料...")
