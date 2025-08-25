@@ -30,16 +30,20 @@ EC Data Pipeline 是一個專為台灣電商企業設計的多平台資料整合
 ### 核心模組
 
 #### 1. **東森購物 (ETMall) - 完整 ETL 管線**
-完整的 6 階段處理流程，是系統最成熟的模組：
+完整的 10 階段處理流程，是系統最成熟的模組：
 
 ```
-01_etmall_xlsx_to_csv.py        → Excel 轉 CSV + 智能備份 + 日期時間分離
-02_etmall_orders_cleaner.py     → 資料清洗 + 欄位標準化 + 中間檔生成
-03_etmall_orders_deduplicator.py → 智能合併去重 + 資料排序
-04_etmall_orders_enricher.py    → 店家資訊增強 + 平台識別
-05_etmall_orders_product_matcher.py → 產品主檔匹配 + 商品資訊豐富
-06_etmall_orders_bq_formatter.py → BigQuery 格式轉換 + 欄位型態轉換
-etmall_to_bigquery_uploader.py  → 專用雲端上傳器
+01_etmall_platform_orders_cleaner.py    → 平台訂單資料清理 + 標準化
+02_etmall_files_archiver.py             → 檔案歸檔管理 + 自動備份
+03_etmall_shipping_orders_merger.py     → 出貨訂單合併 + 資料整合
+04_etmall_sales_report_merger.py        → 銷售報表合併 + 資料整合
+05_etmall_orders_deduplicator.py        → 智能去重處理 + 重複檢測
+06_etmall_orders_merger.py              → 出貨訂單與銷售報表合併
+07_etmall_orders_datetime_processor.py  → 日期時間格式標準化
+08_etmall_orders_field_mapper.py        → 欄位映射轉換 + 英文化
+09_etmall_orders_shop_enricher.py      → 商店資料豐富 + 主檔匹配
+10_etmall_orders_product_enricher.py    → 產品資料豐富 + 主檔匹配
+etmall_to_bigquery_uploader.py          → 專用雲端上傳器
 ```
 
 #### 2. **MOMO 購物中心 - 雙軌處理系統**
@@ -125,12 +129,18 @@ ec-data-pipeline/
 │
 ├── 📂 scripts/                         # 處理腳本
 │   ├── 📂 etmall_orders_etl/           # 東森購物 ETL 流程
-│   │   ├── 🐍 01_etmall_xlsx_to_csv.py
-│   │   ├── 🐍 02_etmall_orders_cleaner.py
-│   │   ├── 🐍 03_etmall_orders_deduplicator.py
-│   │   ├── 🐍 04_etmall_orders_enricher.py
-│   │   ├── 🐍 05_etmall_orders_product_matcher.py
-│   │   └── 🐍 06_etmall_orders_bq_formatter.py
+│   │   ├── 🐍 01_etmall_platform_orders_cleaner.py
+│   │   ├── 🐍 02_etmall_files_archiver.py
+│   │   ├── 🐍 03_etmall_shipping_orders_merger.py
+│   │   ├── 🐍 04_etmall_sales_report_merger.py
+│   │   ├── 🐍 05_etmall_orders_deduplicator.py
+│   │   ├── 🐍 06_etmall_orders_merger.py
+│   │   ├── 🐍 07_etmall_orders_datetime_processor.py
+│   │   ├── 🐍 08_etmall_orders_field_mapper.py
+│   │   ├── 🐍 09_etmall_orders_shop_enricher.py
+│   │   ├── 🐍 10_etmall_orders_product_enricher.py
+│   │   ├── 🐍 csv_to_xlsx_monthly.py
+│   │   └── 📖 README.md
 │   ├── 📂 momo_orders_etl/             # MOMO ETL 處理
 │   │   ├── 🐍 01_rename_and_to_csv_momo_files.py
 │   │   ├── 🐍 momo_accounting_cleaner.py
@@ -227,7 +237,7 @@ mkdir -p {config,data_raw/{etmall,momo,pchome,shopee,Yahoo},data_processed/{merg
 
 ### 🎯 東森購物 (ETMall) - 完整 ETL + BigQuery 流程
 
-東森購物提供了最完整的 6 階段 ETL 處理流程：
+東森購物提供了最完整的 10 階段 ETL 處理流程：
 
 1. **將原始報表放入目錄**
    ```
@@ -237,23 +247,35 @@ mkdir -p {config,data_raw/{etmall,momo,pchome,shopee,Yahoo},data_processed/{merg
 2. **執行 ETL 流程**（按順序執行）：
 
    ```bash
-   # 階段 1: Excel 轉 CSV + 智能備份
-   python scripts/etmall_orders_etl/01_etmall_xlsx_to_csv.py
+   # 階段 1: 平台訂單資料清理與標準化
+   python scripts/etmall_orders_etl/01_etmall_platform_orders_cleaner.py
    
-   # 階段 2: 資料清理與標準化
-   python scripts/etmall_orders_etl/02_etmall_orders_cleaner.py
+   # 階段 2: 檔案歸檔管理與自動備份
+   python scripts/etmall_orders_etl/02_etmall_files_archiver.py
    
-   # 階段 3: 智能合併去重 + 資料排序
-   python scripts/etmall_orders_etl/03_etmall_orders_deduplicator.py
+   # 階段 3: 出貨訂單合併與資料整合
+   python scripts/etmall_orders_etl/03_etmall_shipping_orders_merger.py
    
-   # 階段 4: 店家資訊增強 + 平台識別
-   python scripts/etmall_orders_etl/04_etmall_orders_enricher.py
+   # 階段 4: 銷售報表合併與資料整合
+   python scripts/etmall_orders_etl/04_etmall_sales_report_merger.py
    
-   # 階段 5: 產品資訊匹配 + 商品資訊豐富
-   python scripts/etmall_orders_etl/05_etmall_orders_product_matcher.py
+   # 階段 5: 智能去重處理與重複檢測
+   python scripts/etmall_orders_etl/05_etmall_orders_deduplicator.py
    
-   # 階段 6: BigQuery 格式轉換 + 欄位型態轉換
-   python scripts/etmall_orders_bq_formatter.py
+   # 階段 6: 出貨訂單與銷售報表合併
+   python scripts/etmall_orders_etl/06_etmall_orders_merger.py
+   
+   # 階段 7: 日期時間格式標準化
+   python scripts/etmall_orders_etl/07_etmall_orders_datetime_processor.py
+   
+   # 階段 8: 欄位映射轉換與英文化
+   python scripts/etmall_orders_etl/08_etmall_orders_field_mapper.py
+   
+   # 階段 9: 商店資料豐富與主檔匹配
+   python scripts/etmall_orders_etl/09_etmall_orders_shop_enricher.py
+   
+   # 階段 10: 產品資料豐富與主檔匹配
+   python scripts/etmall_orders_etl/10_etmall_orders_product_enricher.py
    ```
 
 3. **BigQuery 上傳**
@@ -348,7 +370,7 @@ python scripts/TreeMaker.py
 
 ### ETMall 專用上傳器特色
 
-- 🎯 **自動檔案抓取**：自動找到最新的 `06_etmall_orders_bq_formatted_*.csv` 檔案
+- 🎯 **自動檔案抓取**：自動找到最新的 `etmall_orders_product_enriched_*.csv` 檔案（腳本 10 輸出）
 - 🔄 **多種上傳模式**：
   - `WRITE_TRUNCATE`：覆蓋模式（清空後上傳）
   - `WRITE_APPEND`：追加模式（在現有資料後追加）
@@ -476,6 +498,22 @@ graph TB
 
 ## 🆕 版本更新
 
+### v4.0.0 (2025-08-19) - ETMall ETL 流程全面重構與擴展
+- 🔄 **ETMall ETL 全面重構**：從 6 階段擴展為 10 階段完整處理流程
+- 🆕 **新增核心腳本**：
+  - `01_etmall_platform_orders_cleaner.py` - 平台訂單資料清理與標準化
+  - `02_etmall_files_archiver.py` - 檔案歸檔管理與自動備份
+  - `03_etmall_shipping_orders_merger.py` - 出貨訂單合併與資料整合
+  - `04_etmall_sales_report_merger.py` - 銷售報表合併與資料整合
+  - `06_etmall_orders_merger.py` - 出貨訂單與銷售報表合併
+  - `07_etmall_orders_datetime_processor.py` - 日期時間格式標準化
+  - `08_etmall_orders_field_mapper.py` - 欄位映射轉換與英文化
+  - `09_etmall_orders_shop_enricher.py` - 商店資料豐富與主檔匹配
+  - `10_etmall_orders_product_enricher.py` - 產品資料豐富與主檔匹配
+- 📚 **新增詳細文檔**：`scripts/etmall_orders_etl/README.md` 完整說明腳本功能與執行步驟
+- 🔧 **BigQuery 上傳器更新**：支援腳本 10 輸出的新欄位結構
+- 📊 **資料豐富化**：自動填入商店和產品相關資訊，提升資料完整性
+
 ### v3.0.0 (2025-08-18) - ETMall ETL 流程重構與優化
 - 🔄 **ETMall ETL 重構**：將 6 階段 ETL 流程優化，改善資料處理邏輯
 - 🎯 **智能去重處理**：新增 03_etmall_orders_deduplicator.py，使用 order_sn + item_no 作為唯一鍵
@@ -512,10 +550,12 @@ graph TB
 
 ### 🆕 最新特色
 
-- 🔄 **智能 ETL 流程**：ETMall 6 階段 ETL 流程，每個階段都有明確的職責分工
+- 🔄 **智能 ETL 流程**：ETMall 10 階段 ETL 流程，每個階段都有明確的職責分工
 - 🎯 **業務邏輯優化**：支援業務跳號、智能去重、自動檔案清理
 - 📊 **資料品質保證**：自動空值處理、欄位型態轉換、資料排序優化
 - 🚀 **雲端就緒**：直接輸出 BigQuery 格式，一鍵上傳雲端
+- 🏪 **資料豐富化**：自動填入商店和產品相關資訊，提升資料完整性
+- 📚 **完整文檔**：詳細的腳本說明和使用指南，便於維護和擴展
 
 ---
 
