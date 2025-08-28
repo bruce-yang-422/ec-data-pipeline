@@ -88,10 +88,14 @@ shopee_csv_to_master_cleaner.py → 完整的資料清理和格式化
 - `excel_password_remover/` - 批次移除 Excel 密碼保護
 - `clear_logs.py` - 日誌檔案清理工具
 - `data_date_checker.py` - 資料日期完整性檢查
+- `check_duplicate_content.py` - 重複內容檢測工具
+- `clear_temp_files.py` - 暫存檔案清理工具
 - `TreeMaker.py` - 專案結構視覺化工具
 
 #### ☁️ **BigQuery 整合**
 - `bigquery_uploader/` - 通用雲端上傳工具組
+- `etmall_to_bigquery_uploader.py` - ETMall 專用上傳器
+- `yahoo_to_bigquery_uploader.py` - Yahoo 專用上傳器
 - `bq_schemas.py` - 資料表結構定義
 - `bigquery_utils.py` - BigQuery 操作工具庫
 
@@ -498,7 +502,7 @@ graph TB
 
 ## 🆕 版本更新
 
-### v4.0.0 (2025-08-19) - ETMall ETL 流程全面重構與擴展
+### v4.0.0 (2025-08-28) - ETMall ETL 流程全面重構與擴展
 - 🔄 **ETMall ETL 全面重構**：從 6 階段擴展為 10 階段完整處理流程
 - 🆕 **新增核心腳本**：
   - `01_etmall_platform_orders_cleaner.py` - 平台訂單資料清理與標準化
@@ -556,6 +560,8 @@ graph TB
 - 🚀 **雲端就緒**：直接輸出 BigQuery 格式，一鍵上傳雲端
 - 🏪 **資料豐富化**：自動填入商店和產品相關資訊，提升資料完整性
 - 📚 **完整文檔**：詳細的腳本說明和使用指南，便於維護和擴展
+- 🧹 **智能清理工具**：暫存檔案自動清理、重複內容檢測、資料品質檢查
+- 🔍 **多平台支援**：支援 ETMall、MOMO、PChome、蝦皮、Yahoo 等主流電商平台
 
 ---
 

@@ -74,7 +74,8 @@
 **檔案**：`10_etmall_orders_product_enricher.py`
 **功能**：根據 seller_product_sn 填入產品相關資料
 **輸入**：商店資料豐富後的訂單資料
-**輸出**：`etmall_orders_product_enriched_*.csv`
+**輸出**：`etmall_orders_product_enriched_*.csv`（保存到 `data_processed/merged/` 目錄）
+**說明**：此腳本為 ETL 流程的最終輸出，資料將直接傳遞給 BigQuery 上傳器
 
 ## 🚀 快速開始
 
@@ -82,11 +83,14 @@
 
 1. **Python 環境**：Python 3.7+
 2. **必要套件**：pandas, pyyaml, pathlib
-3. **目錄結構**：確保 `temp/etmall/` 目錄存在
+3. **目錄結構**：確保以下目錄存在
+   - `temp/etmall/` - 處理過程中的臨時檔案
+   - `data_processed/merged/` - 最終輸出檔案（腳本 10）
+   - `logs/` - 日誌檔案
 4. **配置檔案**：確認以下檔案完整
-   - `config/etmall_fields_mapping.json`
-   - `config/A02_Shops_Master.json`
-   - `config/products.yaml`
+   - `config/etmall_fields_mapping.json` - 欄位映射配置
+   - `config/A02_Shops_Master.json` - 商店主檔
+   - `config/products.yaml` - 產品主檔
 
 ### 安裝依賴
 
@@ -156,24 +160,74 @@ python 10_etmall_orders_product_enricher.py
 ## 📊 資料流程
 
 ```
-原始訂單檔案 → 清理 → 合併 → 去重 → 欄位映射 → 資料豐富 → 最終輸出
-     ↓              ↓       ↓       ↓        ↓         ↓
-   01腳本        02-06腳本  05腳本   08腳本   09-10腳本  完成
+原始訂單檔案 → 清理 → 合併 → 去重 → 欄位映射 → 資料豐富 → 最終輸出 → BigQuery
+     ↓              ↓       ↓       ↓        ↓         ↓         ↓
+   01腳本        02-06腳本  05腳本   08腳本   09-10腳本  完成    上傳雲端
 ```
+
+### 詳細流程說明
+
+1. **資料輸入階段**（腳本 01-06）：
+   - 原始檔案 → 清理 → 合併 → 去重 → 最終合併
+   - 輸出保存到 `temp/etmall/` 目錄
+
+2. **資料處理階段**（腳本 07-08）：
+   - 日期時間標準化 → 欄位映射轉換
+   - 輸出保存到 `temp/etmall/` 目錄
+
+3. **資料豐富階段**（腳本 09-10）：
+   - 商店資料豐富 → 產品資料豐富
+   - 腳本 10 輸出保存到 `data_processed/merged/` 目錄
+
+4. **雲端上傳階段**：
+   - BigQuery 上傳器自動讀取 `data_processed/merged/` 目錄
+   - 上傳到 Google Cloud BigQuery 進行雲端分析
 
 ## 🔍 輸出檔案說明
 
 每個腳本執行後都會產生帶有時間戳的輸出檔案：
 
 - **檔案命名格式**：`腳本名稱_YYYYMMDD_HHMMSS.csv`
-- **輸出目錄**：`temp/etmall/`
+- **輸出目錄**：
+  - 腳本 01-09：`temp/etmall/`（臨時處理檔案）
+  - 腳本 10：`data_processed/merged/`（最終輸出檔案）
 - **檔案清理**：腳本會自動清理舊的處理檔案，只保留最新的
+- **BigQuery 整合**：腳本 10 的輸出直接傳遞給 BigQuery 上傳器
 
 ## 📝 日誌記錄
 
 - **日誌目錄**：`logs/`
 - **日誌格式**：`腳本名稱_YYYYMMDD_HHMMSS.log`
 - **記錄內容**：執行步驟、資料統計、錯誤資訊等
+
+## ☁️ BigQuery 整合
+
+### 自動上傳流程
+
+腳本 10 執行完成後，資料會自動準備好進行 BigQuery 上傳：
+
+1. **輸出檔案位置**：`data_processed/merged/etmall_orders_product_enriched_*.csv`
+2. **上傳器路徑**：`scripts/bigquery_uploader/etmall_to_bigquery_uploader.py`
+3. **目標資料表**：`shopee-etl-reporting.yichai_etmall_data.etmall_orders_data`
+
+### 上傳方式
+
+```bash
+# 自動模式（推薦）
+python scripts/bigquery_uploader/etmall_to_bigquery_uploader.py
+
+# 指定上傳模式
+python scripts/bigquery_uploader/etmall_to_bigquery_uploader.py --write_disposition WRITE_TRUNCATE
+
+# 指定特定檔案
+python scripts/bigquery_uploader/etmall_to_bigquery_uploader.py --csv data_processed/merged/etmall_orders_product_enriched_20250819_143022.csv
+```
+
+### 支援的上傳模式
+
+- **WRITE_TRUNCATE**：覆蓋模式（清空後上傳，預設）
+- **WRITE_APPEND**：追加模式（在現有資料後追加）
+- **WRITE_EMPTY**：僅空資料表模式
 
 ## ⚠️ 注意事項
 
@@ -221,5 +275,10 @@ python 10_etmall_orders_product_enricher.py
 
 ---
 
-**最後更新**：2024年12月
-**版本**：1.0.0
+**最後更新**：2025年8月28日
+**版本**：2.0.0
+**更新內容**：
+- 腳本 10 輸出路徑更新為 data_processed/merged
+- 新增 BigQuery 整合說明
+- 完善資料流程和目錄結構說明
+- 更新配置檔案和前置需求說明
