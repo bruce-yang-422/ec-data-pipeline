@@ -218,7 +218,10 @@ def analyze_enrichment_results(df, logger):
         logger.error(f"分析豐富結果時發生錯誤: {str(e)}")
 
 def cleanup_temp_files(temp_dir, logger, latest_output_files):
-    """清理 temp/etmall 目錄下的所有腳本輸出檔案，只保留最新的處理檔案"""
+    """清理 temp/etmall 目錄下的所有腳本輸出檔案，只保留最新的處理檔案
+    
+    注意：腳本 10 的輸出檔案現在保存到 data_processed/merged 目錄
+    """
     try:
         logger.info("開始清理臨時檔案...")
         
@@ -275,7 +278,7 @@ def main():
     # 設定路徑
     products_config_path = "config/products.yaml"
     temp_dir = "temp/etmall"
-    output_dir = "temp/etmall"
+    output_dir = "data_processed/merged"
     
     # 檢查配置檔案是否存在
     if not os.path.exists(products_config_path):

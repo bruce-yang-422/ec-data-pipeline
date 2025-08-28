@@ -1,3 +1,67 @@
+"""
+===============================================================================
+MOMO SKU 資料豐富化工具 (MOMO SKU Data Enrichment Tool)
+===============================================================================
+
+📋 腳本用途：
+    本腳本用於為 MOMO 購物中心的訂單資料增加商品相關資訊，透過條碼對應表
+    自動填入商品分類、品牌、規格等詳細資訊，提升資料完整性和分析價值。
+
+🎯 核心重點：
+    1. 智能條碼匹配：支援多個條碼欄位的自動識別和匹配
+    2. 商品資訊豐富：自動填入 18 個商品相關欄位
+    3. 高匹配率：透過條碼對應表實現精確的商品資訊匹配
+    4. 批次處理：支援多個 MOMO CSV 檔案的批次處理
+
+🔧 主要功能：
+    - 載入 SKU mapping 配置檔案（config/sku_mapping.json）
+    - 自動掃描 data_processed/merged 目錄下的 MOMO CSV 檔案
+    - 透過條碼欄位匹配商品主檔資訊
+    - 自動填入商品分類、品牌、規格等詳細資訊
+    - 生成豐富化後的 CSV 檔案（檔名後綴 _enriched）
+    - 提供詳細的匹配統計和處理報告
+
+📊 資料豐富化欄位：
+    商品分類：category, subcategory
+    品牌資訊：brand, series
+    商品屬性：pet_type, product_name_mapped, item_code, sku
+    商品標籤：tags, spec, unit, package_type, package_qty
+    供應商資訊：origin, cost, supplier_code, supplier, supplier_ref
+
+🔍 條碼匹配邏輯：
+    1. 優先檢查 product_manufacturer_code 欄位
+    2. 其次檢查 barcode 欄位
+    3. 最後檢查 product_sku_main 欄位
+    4. 任一欄位匹配成功即填入對應商品資訊
+
+🚀 使用場景：
+    - MOMO 訂單資料品質提升
+    - 商品資訊自動化豐富
+    - 電商資料分析準備
+    - 商品主檔資料整合
+
+📁 輸入檔案：
+    - 位置：data_processed/merged/momo_*.csv
+    - 要求：必須包含條碼相關欄位
+    - 配置：config/sku_mapping.json（條碼對應表）
+
+📈 輸出結果：
+    - 豐富化後的 CSV 檔案（檔名後綴 _enriched）
+    - 控制台即時顯示處理進度和匹配統計
+    - 詳細的操作日誌（logs/momo_sku_enrichment.log）
+    - 整體匹配率和處理統計摘要
+
+⚙️ 配置要求：
+    - sku_mapping.json 必須包含 barcode_mapping 結構
+    - 每個條碼對應完整的商品資訊字典
+    - 支援的欄位：category, subcategory, brand, series, pet_type 等
+
+作者：EC Data Pipeline 團隊
+版本：v1.0.0
+更新日期：2025-08-19
+===============================================================================
+"""
+
 import os
 import pandas as pd
 import json

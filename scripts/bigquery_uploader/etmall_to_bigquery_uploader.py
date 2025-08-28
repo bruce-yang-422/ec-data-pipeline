@@ -5,7 +5,8 @@ ETMall BigQuery 上傳器
 
 主要功能：
 - 專門上傳 ETMall 訂單資料至 BigQuery
-- 自動抓取最新的 ETMall 商品豐富化 CSV 檔案 (03_etmall_orders_product_enriched_*.csv)
+- 自動抓取最新的 ETMall 產品資料豐富化 CSV 檔案 (etmall_orders_product_enriched_*.csv)
+- 從 data_processed/merged 目錄讀取腳本 10 的輸出檔案
 - 上傳到 shopee-etl-reporting.yichai_etmall_data.etmall_orders_data
 - 自動重複資料檢查與處理
 - 完整的日誌記錄與錯誤追蹤
@@ -38,18 +39,21 @@ ETMALL_TABLE = "etmall_orders_data"
 ETMALL_PROJECT = "shopee-etl-reporting"
 
 def get_csv_pattern():
-    """根據當前工作目錄動態設定 CSV 檔案路徑"""
+    """根據當前工作目錄動態設定 CSV 檔案路徑
+    
+    現在讀取 data_processed/merged 目錄下的腳本 10 輸出檔案
+    """
     current_dir = os.getcwd()
     
     # 如果當前目錄是專案根目錄
     if os.path.basename(current_dir) == "ec-data-pipeline":
-        return "temp/etmall/etmall_orders_product_enriched_*.csv"
+        return "data_processed/merged/etmall_orders_product_enriched_*.csv"
     # 如果當前目錄是 scripts/bigquery_uploader
     elif os.path.basename(current_dir) == "bigquery_uploader":
-        return "../../temp/etmall/etmall_orders_product_enriched_*.csv"
+        return "../../data_processed/merged/etmall_orders_product_enriched_*.csv"
     # 其他情況，嘗試相對路徑
     else:
-        return "../../temp/etmall/etmall_orders_product_enriched_*.csv"
+        return "../../data_processed/merged/etmall_orders_product_enriched_*.csv"
 
 def get_credential_path():
     """根據當前工作目錄動態設定認證檔案路徑"""
