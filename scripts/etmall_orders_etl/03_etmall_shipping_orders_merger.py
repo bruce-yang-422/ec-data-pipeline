@@ -13,6 +13,7 @@ import glob
 from pathlib import Path
 import logging
 from datetime import datetime
+import json
 
 # 設定日誌
 def setup_logging():
@@ -61,6 +62,31 @@ def process_csv_file(file_path, logger):
             logger.warning(f"檔案 {file_path} 缺少必要欄位: {missing_columns}")
             return None
         
+        # 處理日期時間分離
+        date_time_columns = ['出貨指示日', '要求配送日']
+        for col in date_time_columns:
+            if col in df.columns:
+                # 檢查是否包含時間資訊（包含空格和冒號）
+                has_time = df[col].astype(str).str.contains(r'\s+\d{1,2}:\d{2}', regex=True, na=False)
+                if has_time.any():
+                    logger.info(f"發現 {col} 欄位包含時間資訊，進行分離處理")
+                    
+                    # 分離日期和時間
+                    date_col = col.replace('日', '日期')
+                    time_col = col.replace('日', '時間')
+                    df[[date_col, time_col]] = df[col].str.split(' ', expand=True)
+                    
+                    # 統一日期格式為 YYYY-MM-DD
+                    df[date_col] = pd.to_datetime(df[date_col], errors='coerce').dt.strftime('%Y-%m-%d')
+                    
+                    # 處理時間格式
+                    df[time_col] = df[time_col].fillna('')
+                    
+                    # 移除原始欄位
+                    df = df.drop(columns=[col])
+                    
+                    logger.info(f"已分離 {col} 為 {date_col} 和 {time_col}")
+        
         # 新增訂單ID欄位
         # 將訂單項次轉換為兩位數格式 (例如：1 -> 01, 2 -> 02)
         df['訂單ID'] = df['訂單號碼'].astype(str) + '_' + df['訂單項次'].astype(str).str.zfill(2)
@@ -107,6 +133,58 @@ def merge_csv_files(csv_files, logger):
     
     logger.info(f"合併完成！總共處理 {len(csv_files)} 個檔案，合計 {total_rows} 筆資料")
     return merged_df
+
+def load_field_mapping():
+    """載入欄位映射配置"""
+    try:
+        config_path = Path("config/etmall_fields_mapping.json")
+        with open(config_path, 'r', encoding='utf-8') as f:
+            field_mapping = json.load(f)
+        
+        # 建立中英文欄位對應字典
+        column_mapping = {}
+        for english_field, field_info in field_mapping.items():
+            if 'zh_name' in field_info:
+                column_mapping[field_info['zh_name']] = english_field
+        
+        return column_mapping
+    except Exception as e:
+        print(f"載入欄位映射配置時發生錯誤: {str(e)}")
+        return {}
+
+def convert_columns_to_english(df, logger):
+    """將中文欄位轉換為英文欄位"""
+    try:
+        logger.info("正在將中文欄位轉換為英文欄位...")
+        
+        # 載入欄位映射配置
+        column_mapping = load_field_mapping()
+        
+        if not column_mapping:
+            logger.warning("無法載入欄位映射配置，跳過欄位轉換")
+            return df
+        
+        # 重新命名欄位
+        df_renamed = df.rename(columns=column_mapping)
+        
+        # 記錄欄位轉換
+        converted_columns = []
+        for chinese_col, english_col in column_mapping.items():
+            if chinese_col in df.columns:
+                converted_columns.append(f"{chinese_col} -> {english_col}")
+        
+        if converted_columns:
+            logger.info("欄位轉換完成:")
+            for conversion in converted_columns:
+                logger.info(f"  {conversion}")
+        else:
+            logger.info("沒有需要轉換的中文欄位")
+        
+        return df_renamed
+        
+    except Exception as e:
+        logger.error(f"欄位轉換時發生錯誤: {str(e)}")
+        return df
 
 def save_merged_file(merged_df, output_dir, logger):
     """儲存合併後的檔案"""
@@ -165,6 +243,14 @@ def main():
     sample_data = merged_df[['訂單號碼', '訂單項次', '訂單ID']].head(10)
     for _, row in sample_data.iterrows():
         logger.info(f"  訂單號碼: {row['訂單號碼']}, 訂單項次: {row['訂單項次']}, 訂單ID: {row['訂單ID']}")
+    
+    # 將中文欄位轉換為英文欄位
+    merged_df = convert_columns_to_english(merged_df, logger)
+    
+    # 顯示轉換後的欄位資訊
+    logger.info("轉換後的欄位順序:")
+    for i, col in enumerate(merged_df.columns):
+        logger.info(f"  {i+1:2d}. {col}")
     
     # 儲存合併後的檔案
     output_file = save_merged_file(merged_df, output_dir, logger)

@@ -59,12 +59,12 @@ def load_and_deduplicate_file(file_path, file_type, logger):
         logger.info(f"原始資料筆數: {len(df)}")
         
         # 檢查是否有訂單ID欄位
-        if '訂單ID' not in df.columns:
-            logger.error(f"檔案 {file_path} 缺少訂單ID欄位")
+        if 'order_line_uid' not in df.columns:
+            logger.error(f"檔案 {file_path} 缺少order_line_uid欄位")
             return None
         
         # 以訂單ID為key進行去重，保留最後一筆
-        df_dedup = df.drop_duplicates(subset=['訂單ID'], keep='last')
+        df_dedup = df.drop_duplicates(subset=['order_line_uid'], keep='last')
         logger.info(f"去重後資料筆數: {len(df_dedup)}")
         logger.info(f"去重減少筆數: {len(df) - len(df_dedup)}")
         
@@ -94,7 +94,7 @@ def analyze_duplicates(df, file_type, logger):
     """分析重複資料"""
     try:
         # 統計重複的訂單ID
-        duplicate_counts = df['訂單ID'].value_counts()
+        duplicate_counts = df['order_line_uid'].value_counts()
         duplicates = duplicate_counts[duplicate_counts > 1]
         
         if len(duplicates) > 0:
@@ -165,6 +165,10 @@ def main():
     # 設定路徑
     temp_dir = "temp/etmall"
     output_dir = "temp/etmall"
+    
+    # 初始化變數
+    shipping_output = None
+    sales_output = None
     
     # 檢查目錄是否存在
     if not os.path.exists(temp_dir):

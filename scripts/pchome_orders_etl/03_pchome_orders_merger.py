@@ -4,7 +4,7 @@ import glob
 import json
 
 CLEANED_DIR = r'D:\Projects\python_dev\ec-data-pipeline\temp\pchome'
-MERGED_DIR = r'D:\Projects\python_dev\ec-data-pipeline\data_processed\merged'
+OUTPUT_DIR = r'D:\Projects\python_dev\ec-data-pipeline\temp\pchome'
 MAPPING_PATH = r'D:\Projects\python_dev\ec-data-pipeline\config\pchome_fields_mapping.json'
 
 # 讀入 mapping 欄位順序
@@ -12,7 +12,7 @@ with open(MAPPING_PATH, 'r', encoding='utf-8') as f:
     mapping = json.load(f)
 output_cols = [k for k, v in sorted(mapping.items(), key=lambda x: int(x[1]['order']))]
 
-os.makedirs(MERGED_DIR, exist_ok=True)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # 唯一鍵（BigQuery/Postgres 都推薦 composite key）
 UNIQUE_KEYS = ['platform', 'order_id']
@@ -44,9 +44,19 @@ def merge_cleaned_files():
     merged = merged.drop_duplicates(subset=UNIQUE_KEYS, keep='last').reset_index(drop=True)
     print(f"[INFO] 合併後唯一鍵去重：{len(merged)}")
 
-    outpath = os.path.join(MERGED_DIR, 'pchome_orders_merged.csv')
+    outpath = os.path.join(OUTPUT_DIR, 'pchome_orders_merged.csv')
     merged.to_csv(outpath, index=False, encoding='utf-8-sig')
     print(f"[INFO] 已輸出合併檔案：{outpath}")
+    
+    # 清除所有舊的 .csv 檔案（除了剛輸出的合併檔案）
+    csv_files = glob.glob(os.path.join(CLEANED_DIR, '*.csv'))
+    for csv_file in csv_files:
+        if csv_file != outpath:  # 保留剛輸出的合併檔案
+            try:
+                os.remove(csv_file)
+                print(f"[INFO] 已刪除舊檔案：{csv_file}")
+            except Exception as e:
+                print(f"[WARN] 刪除檔案失敗 {csv_file}: {e}")
 
 if __name__ == '__main__':
     merge_cleaned_files()

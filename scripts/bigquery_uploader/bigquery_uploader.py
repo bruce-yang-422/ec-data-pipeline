@@ -38,7 +38,7 @@ DEFAULT_DATASET = "yichai_momo_data"
 DEFAULT_FILES = {
     "c1105_momo_accounting_orders": "data_processed/merged/momo_accounting_orders_deduplicated.csv",
     "a1102_momo_shipping_orders": "data_processed/merged/momo_shipping_orders_deduplicated.csv",
-    "etmall_orders": "data_processed/merged/etmall_orders_bq_formatted_20250807_115715.csv",
+    "etmall_orders": "data_processed/merged/etmall_orders_product_enriched_20250903_150306.csv",
 }
 
 
@@ -250,7 +250,7 @@ def interactive_mode():
         upload_single_file(credential, csv, dataset, table, write_disposition, check_duplicates, logger)
     elif choice == "3":
         table = "etmall_orders"
-        csv = "data_processed/merged/etmall_orders_bq_formatted_20250807_115715.csv"
+        csv = "data_processed/merged/etmall_orders_product_enriched_20250903_150306.csv"
         logger.info(f"準備上傳: {csv} -> {dataset}.{table}")
         print(f"\n準備上傳: {csv} -> {dataset}.{table}")
         upload_single_file(credential, csv, dataset, table, write_disposition, check_duplicates, logger)

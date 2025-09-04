@@ -53,6 +53,16 @@ def extract_date_from_filename(filename: str) -> datetime:
     # 如果無法從檔名提取，返回 None
     return None
 
+def extract_year_month_from_filename(filename: str) -> tuple:
+    """從檔名提取年月資訊"""
+    # 尋找 YYYYMM 格式的日期
+    match = re.search(r'(\d{4})(\d{2})', filename)
+    if match:
+        year = match.group(1)
+        month = match.group(2)
+        return year, month
+    return None, None
+
 def compare_file_content(file1_path: Path, file2_path: Path) -> bool:
     """比較兩個檔案的內容是否相同"""
     try:
@@ -78,7 +88,16 @@ def detect_file_type(file_path: Path) -> str:
     """檢測檔案類型"""
     # 首先根據檔名判斷（優先級最高）
     filename = file_path.name.lower()
-    if '訂單出貨報表' in filename or '出貨' in filename:
+    
+    # 檢查是否為「大平台貼單」檔案
+    if '大平台貼單' in filename:
+        return "platform_order_report"
+    
+    # 檢查是否為 Etmall_Order_Report_YYYYMM.csv 格式的檔案
+    if filename.startswith('etmall_order_report_') and filename.endswith('.csv'):
+        return "platform_order_report"
+    
+    elif '訂單出貨報表' in filename or '出貨' in filename:
         return "daily_shipping_orders"
     elif '銷售報表' in filename or '銷售' in filename:
         return "sales_report"
@@ -128,6 +147,26 @@ def detect_file_type(file_path: Path) -> str:
         # 預設為訂單出貨報表
         return "daily_shipping_orders"
 
+def create_order_report_directory(base_path: Path, year: str) -> Path:
+    """建立訂單報表目錄結構"""
+    order_report_dir = base_path / "Order_Report" / year
+    order_report_dir.mkdir(parents=True, exist_ok=True)
+    return order_report_dir
+
+def find_available_filename(base_filename: str, target_dir: Path) -> str:
+    """尋找可用的檔名"""
+    if not (target_dir / base_filename).exists():
+        return base_filename
+    
+    # 檔案已存在，尋找可用的流水號
+    name_without_ext = base_filename.replace('.csv', '')
+    counter = 2
+    while True:
+        new_filename = f"{name_without_ext}_{counter:02d}.csv"
+        if not (target_dir / new_filename).exists():
+            return new_filename
+        counter += 1
+
 def archive_files_to_folders(logger: logging.Logger):
     """將檔案按類型移動到對應的年月資料夾"""
     base_path = Path("data_raw/etmall")
@@ -153,16 +192,42 @@ def archive_files_to_folders(logger: logging.Logger):
     
     for file_path in files:
         try:
+            # 檢測檔案類型
+            file_type = detect_file_type(file_path)
+            logger.info(f"📋 檔案類型: {file_path.name} -> {file_type}")
+            
+            # 特殊處理「大平台貼單」檔案
+            if file_type == "platform_order_report":
+                # 從檔名提取年月
+                year, month = extract_year_month_from_filename(file_path.name)
+                if year and month:
+                    # 重新命名為標準格式
+                    new_filename = f"Etmall_Order_Report_{year}{month}.csv"
+                    
+                    # 建立目錄結構
+                    target_dir = create_order_report_directory(base_path, year)
+                    
+                    # 檢查檔名是否已存在，尋找可用的流水號
+                    final_filename = find_available_filename(new_filename, target_dir)
+                    final_file_path = target_dir / final_filename
+                    
+                    # 移動檔案
+                    shutil.move(str(file_path), str(final_file_path))
+                    logger.info(f"✅ 已移動並重新命名: {file_path.name} -> {final_filename}")
+                    logger.info(f"📁 目標目錄: {target_dir}")
+                    moved_count += 1
+                    continue
+                else:
+                    logger.warning(f"無法從檔名提取年月，跳過: {file_path.name}")
+                    skipped_count += 1
+                    continue
+            
             # 從檔名提取日期
             file_date = extract_date_from_filename(file_path.name)
             if not file_date:
                 logger.warning(f"無法從檔名提取日期，跳過: {file_path.name}")
                 skipped_count += 1
                 continue
-            
-            # 檢測檔案類型
-            file_type = detect_file_type(file_path)
-            logger.info(f"📋 檔案類型: {file_path.name} -> {file_type}")
             
             # 確定歸檔目錄：按類型/年/月組織（銷售報表只按年）
             if file_type == "sales_report":
@@ -220,6 +285,12 @@ def archive_files_to_folders(logger: logging.Logger):
                 if year_dir.is_dir():
                     if type_dir.name == "sales_report":
                         # 銷售報表：只顯示年份和檔案數量
+                        year_files = len(list(year_dir.glob("*")))
+                        if year_files > 0:
+                            logger.info(f"     {year_dir.name}: {year_files} 個檔案")
+                            type_total += year_files
+                    elif type_dir.name == "Order_Report":
+                        # 訂單報表：顯示年份和檔案數量
                         year_files = len(list(year_dir.glob("*")))
                         if year_files > 0:
                             logger.info(f"     {year_dir.name}: {year_files} 個檔案")

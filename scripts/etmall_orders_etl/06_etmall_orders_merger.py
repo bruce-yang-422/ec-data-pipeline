@@ -58,8 +58,8 @@ def load_file(file_path, file_type, logger):
         logger.info(f"{file_type} 資料筆數: {len(df)}")
         
         # 檢查是否有訂單ID欄位
-        if '訂單ID' not in df.columns:
-            logger.error(f"檔案 {file_path} 缺少訂單ID欄位")
+        if 'order_line_uid' not in df.columns:
+            logger.error(f"檔案 {file_path} 缺少order_line_uid欄位")
             return None
         
         return df
@@ -74,8 +74,8 @@ def merge_dataframes(shipping_df, sales_df, logger):
         logger.info("開始根據訂單ID合併資料...")
         
         # 檢查兩個資料框的訂單ID數量
-        shipping_order_ids = set(shipping_df['訂單ID'].unique())
-        sales_order_ids = set(sales_df['訂單ID'].unique())
+        shipping_order_ids = set(shipping_df['order_line_uid'].unique())
+        sales_order_ids = set(sales_df['order_line_uid'].unique())
         
         logger.info(f"訂單出貨報表唯一訂單ID數量: {len(shipping_order_ids)}")
         logger.info(f"銷售報表唯一訂單ID數量: {len(sales_order_ids)}")
@@ -89,13 +89,21 @@ def merge_dataframes(shipping_df, sales_df, logger):
         logger.info(f"僅在訂單出貨報表中的訂單ID數量: {len(shipping_only)}")
         logger.info(f"僅在銷售報表中的訂單ID數量: {len(sales_only)}")
         
-        # 使用左連接合併，以銷售報表為主
+        # 顯示一些範例訂單ID
+        if common_order_ids:
+            logger.info(f"共同訂單ID範例: {list(common_order_ids)[:5]}")
+        if shipping_only:
+            logger.info(f"僅在訂單出貨報表中的訂單ID範例: {list(shipping_only)[:5]}")
+        if sales_only:
+            logger.info(f"僅在銷售報表中的訂單ID範例: {list(sales_only)[:5]}")
+        
+        # 使用外連接合併，保留所有記錄
         # 先檢查是否有重複的欄位名稱
         sales_columns = set(sales_df.columns)
         shipping_columns = set(shipping_df.columns)
         
         # 找出重複的欄位名稱（除了訂單ID）
-        duplicate_columns = sales_columns.intersection(shipping_columns) - {'訂單ID'}
+        duplicate_columns = sales_columns.intersection(shipping_columns) - {'order_line_uid'}
         
         if duplicate_columns:
             logger.info(f"發現重複欄位: {list(duplicate_columns)}")
@@ -106,15 +114,57 @@ def merge_dataframes(shipping_df, sales_df, logger):
         else:
             shipping_df_renamed = shipping_df
         
-        # 執行合併
+        # 執行外連接合併，保留所有記錄
         merged_df = pd.merge(
             sales_df, 
             shipping_df_renamed, 
-            on='訂單ID', 
-            how='left'
+            on='order_line_uid', 
+            how='outer'
         )
         
         logger.info(f"合併後資料筆數: {len(merged_df)}")
+        
+        # 處理訂單日期欄位 - 讓中英文版本都適用
+        # 檢查是否有訂單日期相關的欄位
+        date_columns = []
+        if '訂單日期' in merged_df.columns:
+            date_columns.append('訂單日期')
+        if 'order_date' in merged_df.columns:
+            date_columns.append('order_date')
+        if '訂單日期_shipping' in merged_df.columns:
+            date_columns.append('訂單日期_shipping')
+        
+        logger.info(f"發現的日期欄位: {date_columns}")
+        
+        # 統一訂單日期欄位
+        if len(date_columns) > 0:
+            # 創建統一的訂單日期欄位
+            merged_df['order_date'] = ''
+            
+            # 優先使用銷售報表的訂單日期
+            if '訂單日期' in merged_df.columns:
+                merged_df['order_date'] = merged_df['訂單日期'].fillna('')
+            
+            # 如果銷售報表的訂單日期為空，使用訂單出貨報表的訂單日期
+            if '訂單日期_shipping' in merged_df.columns:
+                mask = (merged_df['order_date'] == '') | (merged_df['order_date'].isna())
+                merged_df.loc[mask, 'order_date'] = merged_df.loc[mask, '訂單日期_shipping'].fillna('')
+            
+            # 如果還是空的，使用英文的 order_date
+            if 'order_date' in merged_df.columns and 'order_date' not in date_columns:
+                mask = (merged_df['order_date'] == '') | (merged_df['order_date'].isna())
+                merged_df.loc[mask, 'order_date'] = merged_df.loc[mask, 'order_date'].fillna('')
+            
+            # 將統一的 order_date 重新命名為 訂單日期
+            merged_df['訂單日期'] = merged_df['order_date']
+            merged_df = merged_df.drop(columns=['order_date'])
+            
+            # 移除其他日期欄位
+            for col in date_columns:
+                if col != '訂單日期' and col in merged_df.columns:
+                    merged_df = merged_df.drop(columns=[col])
+            
+            logger.info("已統一訂單日期欄位")
         
         # 刪除不需要的欄位
         columns_to_drop = [
@@ -139,8 +189,24 @@ def merge_dataframes(shipping_df, sales_df, logger):
             logger.info("沒有找到需要刪除的欄位")
         
         # 檢查合併結果
-        merged_order_ids = set(merged_df['訂單ID'].unique())
+        merged_order_ids = set(merged_df['order_line_uid'].unique())
         logger.info(f"合併後唯一訂單ID數量: {len(merged_order_ids)}")
+        
+        # 檢查空的訂單日期
+        empty_dates = merged_df[merged_df['訂單日期'].isna() | (merged_df['訂單日期'] == '')]
+        if len(empty_dates) > 0:
+            logger.warning(f"發現 {len(empty_dates)} 筆記錄的訂單日期為空")
+            logger.warning("這些記錄的訂單ID: " + ", ".join(empty_dates['order_line_uid'].head(10).tolist()))
+        
+        # 分析資料來源
+        # 檢查哪些記錄來自銷售報表，哪些來自訂單報表
+        sales_only_records = merged_df[merged_df['order_line_uid'].isin(sales_only)]
+        shipping_only_records = merged_df[merged_df['order_line_uid'].isin(shipping_only)]
+        common_records = merged_df[merged_df['order_line_uid'].isin(common_order_ids)]
+        
+        logger.info(f"僅來自銷售報表的記錄: {len(sales_only_records)} 筆")
+        logger.info(f"僅來自訂單出貨報表的記錄: {len(shipping_only_records)} 筆")
+        logger.info(f"兩個報表都有的記錄: {len(common_records)} 筆")
         
         # 根據訂單日期 > 訂單編號 > 項次 順序排列
         try:
@@ -299,57 +365,96 @@ def main():
     shipping_pattern = os.path.join(temp_dir, "etmall_shipping_orders_deduplicated_*.csv")
     latest_shipping_file = find_latest_file(shipping_pattern, logger)
     
-    if not latest_shipping_file and not latest_sales_file:
-        logger.error("未找到任何可處理的檔案")
-        return
-    
     if not latest_sales_file:
         logger.error("未找到銷售報表檔案")
         return
     
-    if not latest_shipping_file:
-        logger.error("未找到訂單出貨報表檔案")
-        return
-    
-    # 載入檔案
+    # 載入銷售報表檔案
     logger.info("=" * 50)
     logger.info("載入檔案")
     logger.info("=" * 50)
     
     sales_df = load_file(latest_sales_file, "銷售報表", logger)
-    shipping_df = load_file(latest_shipping_file, "訂單出貨報表", logger)
     
-    if shipping_df is None or sales_df is None:
-        logger.error("檔案載入失敗")
+    if sales_df is None:
+        logger.error("銷售報表檔案載入失敗")
         return
     
-    # 合併資料
-    logger.info("=" * 50)
-    logger.info("合併資料")
-    logger.info("=" * 50)
-    
-    merged_df = merge_dataframes(shipping_df, sales_df, logger)
-    
-    if merged_df is None:
-        logger.error("資料合併失敗")
-        return
-    
-    # 分析合併結果
-    analyze_merge_results(merged_df, logger)
-    
-    # 儲存合併後的檔案
-    logger.info("=" * 50)
-    logger.info("儲存合併檔案")
-    logger.info("=" * 50)
-    
-    merged_output = save_merged_file(merged_df, output_dir, logger)
-    
-    if merged_output is None:
-        logger.error("儲存合併檔案失敗")
-        return
-    
-    # 收集最新生成的合併檔案路徑
-    latest_output_files = [str(merged_output)]
+    # 如果有訂單出貨報表檔案，進行合併
+    if latest_shipping_file:
+        logger.info("找到訂單出貨報表檔案，進行合併處理")
+        
+        shipping_df = load_file(latest_shipping_file, "訂單出貨報表", logger)
+        
+        if shipping_df is None:
+            logger.error("訂單出貨報表檔案載入失敗")
+            return
+        
+        # 合併資料
+        logger.info("=" * 50)
+        logger.info("合併資料")
+        logger.info("=" * 50)
+        
+        merged_df = merge_dataframes(shipping_df, sales_df, logger)
+        
+        if merged_df is None:
+            logger.error("資料合併失敗")
+            return
+        
+        # 分析合併結果
+        analyze_merge_results(merged_df, logger)
+        
+        # 儲存合併後的檔案
+        logger.info("=" * 50)
+        logger.info("儲存合併檔案")
+        logger.info("=" * 50)
+        
+        merged_output = save_merged_file(merged_df, output_dir, logger)
+        
+        if merged_output is None:
+            logger.error("儲存合併檔案失敗")
+            return
+        
+        # 收集最新生成的合併檔案路徑
+        latest_output_files = [str(merged_output)]
+        
+    else:
+        logger.info("未找到訂單出貨報表檔案，直接使用銷售報表作為最終輸出")
+        
+        # 直接使用銷售報表作為最終輸出
+        logger.info("=" * 50)
+        logger.info("直接輸出銷售報表")
+        logger.info("=" * 50)
+        
+        # 根據訂單日期 > 訂單編號 > 項次 順序排列
+        try:
+            # 確保日期格式正確
+            sales_df['訂單日期'] = pd.to_datetime(sales_df['訂單日期'], errors='coerce')
+            
+            # 排序：訂單日期 > 訂單編號 > 項次
+            sales_df = sales_df.sort_values(
+                by=['訂單日期', '訂單編號', '項次'], 
+                ascending=[True, True, True]  # 日期升序（舊的在前，新的在後），編號和項次升序
+            )
+            
+            logger.info("資料已按照 訂單日期 > 訂單編號 > 項次 順序排列")
+            
+        except Exception as e:
+            logger.warning(f"排序時發生錯誤，保持原始順序: {str(e)}")
+        
+        # 儲存檔案
+        merged_output = save_merged_file(sales_df, output_dir, logger)
+        
+        if merged_output is None:
+            logger.error("儲存檔案失敗")
+            return
+        
+        # 收集最新生成的檔案路徑
+        latest_output_files = [str(merged_output)]
+        
+        logger.info("=" * 50)
+        logger.info("銷售報表直接輸出完成")
+        logger.info("=" * 50)
     
     # 清理臨時檔案
     logger.info("=" * 50)
