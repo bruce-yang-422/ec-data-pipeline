@@ -143,6 +143,12 @@ class MomoAccountingCleaner:
 
                 # 重新命名欄位
                 df = df.rename(columns=zh_to_en)
+                
+                # 額外的欄位重新命名（處理英文欄位名稱）
+                field_rename_map = {
+                    'product_cost': 'platform_product_cost'
+                }
+                df = df.rename(columns=field_rename_map)
 
                 # 過濾空的訂單編號
                 if 'order_sn' in df.columns:
@@ -340,6 +346,13 @@ class MomoAccountingCleaner:
             
             # 強制重新排序欄位
             combined = combined[columns]
+            
+            # 處理帳務數字欄位，確保小數點下兩位
+            cost_fields = ['product_cost_untaxed', 'platform_product_cost', 'product_original_price']
+            for field in cost_fields:
+                if field in combined.columns:
+                    # 轉換為數值，保留小數點下兩位
+                    combined[field] = pd.to_numeric(combined[field], errors='coerce').round(2)
             
             # 按日期與訂單號排序
             if 'order_date' in combined.columns and 'order_sn' in combined.columns:

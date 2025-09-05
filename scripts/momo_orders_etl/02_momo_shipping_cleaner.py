@@ -140,6 +140,12 @@ class MomoShippingCleaner:
 
                 # 根據檔案名稱判斷資料來源
                 df = df.rename(columns=zh_to_en)
+                
+                # 額外的欄位重新命名（處理英文欄位名稱）
+                field_rename_map = {
+                    'product_cost': 'platform_product_cost'
+                }
+                df = df.rename(columns=field_rename_map)
                 if file_name.startswith("A1102_2_超商取貨_"):
                     data_source = 'A1102_2'
                 elif file_name.startswith("A1102_3_第三方物流_"):
@@ -404,6 +410,13 @@ class MomoShippingCleaner:
             
             # 強制重新排序欄位
             combined = combined[columns]
+            
+            # 處理帳務數字欄位，確保小數點下兩位
+            cost_fields = ['product_cost_untaxed', 'platform_product_cost', 'product_original_price']
+            for field in cost_fields:
+                if field in combined.columns:
+                    # 轉換為數值，保留小數點下兩位
+                    combined[field] = pd.to_numeric(combined[field], errors='coerce').round(2)
             
             # 按日期與訂單號排序
             if 'order_date' in combined.columns and 'order_sn' in combined.columns:

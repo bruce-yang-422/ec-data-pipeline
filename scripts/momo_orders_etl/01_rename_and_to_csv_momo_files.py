@@ -180,6 +180,16 @@ def read_file_as_str_df(path: Path) -> pd.DataFrame:
 
 
 def write_df_to_csv_all_str(df: pd.DataFrame, out_path: Path) -> None:
+    df = df.copy()
+    
+    # 處理帳務數字欄位，確保小數點下兩位
+    cost_fields = ['product_cost_untaxed', 'platform_product_cost', 'product_original_price']
+    for field in cost_fields:
+        if field in df.columns:
+            # 轉換為數值，保留小數點下兩位
+            df[field] = pd.to_numeric(df[field], errors='coerce').round(2)
+    
+    # 其他欄位轉為字串
     df = df.astype(str).fillna("")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(

@@ -32,7 +32,7 @@ class MomoOrdersDeduplicator:
     def __init__(self):
         self.project_root = Path(__file__).parent.parent.parent
         self.input_dir = self.project_root / "temp" / "momo"
-        self.output_dir = self.project_root / "data_processed" / "merged"
+        self.output_dir = self.project_root / "temp" / "momo"
         self.logger = setup_logging()
         
         # 輸入檔案路徑
@@ -63,12 +63,40 @@ class MomoOrdersDeduplicator:
         self.logger.info("載入訂單資料...")
         
         try:
-            # 載入會計訂單
+            # 載入會計訂單（確保特定欄位保持字串格式）
             accounting_df = pd.read_csv(self.accounting_file, encoding='utf-8')
+            
+            # 欄位重新命名
+            field_rename_map = {
+                'product_cost': 'platform_product_cost'
+            }
+            accounting_df = accounting_df.rename(columns=field_rename_map)
+            
+            # 強制將特定欄位轉換為字串，避免小數點
+            string_fields = ['product_manufacturer_code', 'product_sku_main', 'product_barcode', 'product_spec']
+            for field in string_fields:
+                if field in accounting_df.columns:
+                    # 先轉換為整數（如果是數值），再轉換為字串
+                    if accounting_df[field].dtype in ['int64', 'float64']:
+                        accounting_df[field] = accounting_df[field].astype('Int64').astype(str)
+                    else:
+                        accounting_df[field] = accounting_df[field].astype(str)
             self.logger.info(f"載入會計訂單: {len(accounting_df)} 筆")
             
-            # 載入出貨訂單
+            # 載入出貨訂單（確保特定欄位保持字串格式）
             shipping_df = pd.read_csv(self.shipping_file, encoding='utf-8')
+            
+            # 欄位重新命名
+            shipping_df = shipping_df.rename(columns=field_rename_map)
+            
+            # 強制將特定欄位轉換為字串，避免小數點
+            for field in string_fields:
+                if field in shipping_df.columns:
+                    # 先轉換為整數（如果是數值），再轉換為字串
+                    if shipping_df[field].dtype in ['int64', 'float64']:
+                        shipping_df[field] = shipping_df[field].astype('Int64').astype(str)
+                    else:
+                        shipping_df[field] = shipping_df[field].astype(str)
             self.logger.info(f"載入出貨訂單: {len(shipping_df)} 筆")
             
             return accounting_df, shipping_df
@@ -114,6 +142,13 @@ class MomoOrdersDeduplicator:
         self.logger.info(f"儲存 {file_type} 去重後的資料...")
         
         try:
+            # 處理帳務數字欄位，確保小數點下兩位
+            cost_fields = ['product_cost_untaxed', 'platform_product_cost', 'product_original_price']
+            for field in cost_fields:
+                if field in df.columns:
+                    # 轉換為數值，保留小數點下兩位
+                    df[field] = pd.to_numeric(df[field], errors='coerce').round(2)
+            
             df.to_csv(output_file, index=False, encoding='utf-8')
             self.logger.info(f"✓ {file_type} 資料已儲存至: {output_file}")
             
