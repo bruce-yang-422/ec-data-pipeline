@@ -74,6 +74,23 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
         # 讀取 CSV 檔案，強制所有欄位為字串類型
         df = pd.read_csv(file_path, encoding='utf-8-sig', dtype=str)
         
+        # 自動處理換行符號轉換
+        # 將所有欄位中的換行符號完全移除，確保 CSV 格式正確
+        for col in df.columns:
+            if df[col].dtype == 'object':  # 只處理字串欄位
+                df[col] = df[col].astype(str)
+                # 完全移除所有換行符號
+                df[col] = df[col].str.replace('\r\n', '', regex=False)
+                df[col] = df[col].str.replace('\n', '', regex=False)
+                df[col] = df[col].str.replace('\r', '', regex=False)
+                df[col] = df[col].str.replace('\t', ' ', regex=False)
+                # 將多個連續空格替換為單一空格
+                df[col] = df[col].str.replace(r'\s+', ' ', regex=True)
+                # 去除前後空白
+                df[col] = df[col].str.strip()
+        
+        logging.info("已自動處理換行符號轉換（完全移除換行符號）")
+        
         # 記錄原始欄位數量
         original_columns = len(df.columns)
         logging.info(f"原始欄位數量：{original_columns}")
@@ -97,15 +114,13 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
             '成本': 'cost_to_platform',
             '數量': 'quantity',
             '通路': 'channel',
-            '配送確認日': 'shipping_confirm_date',
-            '公司': 'supplier'
+            '配送確認日': 'shipping_confirm_date'
         }
         
         # 需要添加的空欄位（按照 etmall_fields_mapping.json 的順序）
         additional_columns = {
             'platform': 'etmall',
             'order_time': '',
-            'order_line_uid': '',
             'merge_no': '',
             'order_type': '',
             'order_type_code': '',
@@ -146,8 +161,8 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
             'unit': '',
             'origin': '',
             'supplier_code': '',
-            'purchase_cost': '',
-            'order_amount': ''
+            'supplier': '',
+            'purchase_cost': ''
         }
         
         # 建立新的 DataFrame 來存放對應後的欄位，按照 etmall_fields_mapping.json 的順序
@@ -164,7 +179,7 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
             'vendor_shipping_note', 'expected_stockin_date', 'expected_delivery_date', 'channel_type', 'channel',
             'shop_id', 'shop_name', 'shop_business_model', 'location', 'department', 'manager', 'category_level_1',
             'category_level_2', 'brand', 'series', 'pet_type', 'product_name', 'item_code', 'sku', 'tags', 'spec',
-            'unit', 'origin', 'supplier_code', 'supplier', 'order_amount'
+            'unit', 'origin', 'supplier_code', 'supplier'
         ]
         
         # 先處理原始銷售報表的欄位對應
@@ -182,8 +197,32 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
                 df_cleaned[target_col] = default_value
                 logging.info(f"添加空欄位：{target_col}")
         
+        # 自動產生 order_line_uid = order_sn + "_" + item_no
+        if 'order_sn' in df_cleaned.columns and 'item_no' in df_cleaned.columns:
+            df_cleaned['order_line_uid'] = df_cleaned['order_sn'].astype(str) + "_" + df_cleaned['item_no'].astype(str)
+            logging.info("自動產生 order_line_uid 欄位")
+        
+        # 確保 supplier 欄位維持空白（不從原始資料對應）
+        if 'supplier' in df_cleaned.columns:
+            df_cleaned['supplier'] = ''
+            logging.info("設定 supplier 欄位為空白")
+        
         # 按照 field_order 重新排序欄位
         df_cleaned = df_cleaned[field_order]
+        
+        # 按照 order_sn 和 item_no 排序（由小到大）
+        if 'order_sn' in df_cleaned.columns and 'item_no' in df_cleaned.columns:
+            # 先將 order_sn 和 item_no 轉換為數值型態進行排序
+            df_cleaned['order_sn_numeric'] = pd.to_numeric(df_cleaned['order_sn'], errors='coerce')
+            df_cleaned['item_no_numeric'] = pd.to_numeric(df_cleaned['item_no'], errors='coerce')
+            
+            # 按照 order_sn 和 item_no 排序
+            df_cleaned = df_cleaned.sort_values(['order_sn_numeric', 'item_no_numeric'], ascending=[True, True])
+            
+            # 移除臨時排序欄位
+            df_cleaned = df_cleaned.drop(['order_sn_numeric', 'item_no_numeric'], axis=1)
+            
+            logging.info("已按照 order_sn 和 item_no 排序（由小到大）")
         
         # 記錄清洗後的欄位數量
         cleaned_columns = len(df_cleaned.columns)
