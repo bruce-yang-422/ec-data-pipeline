@@ -175,6 +175,52 @@ def cleanup_input_files(csv_files: list):
     
     logging.info(f"總共刪除 {deleted_count} 個輸入檔案")
 
+def cleanup_old_merged_files(output_dir: Path, keep_latest: bool = True):
+    """
+    清理 temp\\etmall 目錄下的舊銷售報表合併檔案，只保留最新的
+    
+    Args:
+        output_dir: temp\\etmall 目錄路徑
+        keep_latest: 是否保留最新的檔案
+    """
+    if not output_dir.exists():
+        logging.warning(f"目錄不存在：{output_dir}")
+        return
+    
+    # 尋找所有銷售報表合併檔案
+    merged_files = list(output_dir.glob("etmall_sales_report_merged_*.csv"))
+    
+    if not merged_files:
+        logging.info("沒有找到需要清理的銷售報表合併檔案")
+        return
+    
+    # 按修改時間排序，最新的在最後
+    merged_files.sort(key=lambda x: x.stat().st_mtime)
+    
+    if keep_latest:
+        # 保留最新的檔案
+        files_to_delete = merged_files[:-1]  # 除了最後一個（最新的）
+        files_to_keep = merged_files[-1:]    # 只保留最新的
+    else:
+        # 刪除所有檔案
+        files_to_delete = merged_files
+        files_to_keep = []
+    
+    deleted_count = 0
+    for file_path in files_to_delete:
+        try:
+            if file_path.exists():
+                file_path.unlink()
+                logging.info(f"已刪除舊檔案：{file_path.name}")
+                deleted_count += 1
+        except Exception as e:
+            logging.warning(f"刪除檔案失敗：{file_path.name} - {str(e)}")
+    
+    if files_to_keep:
+        logging.info(f"保留最新檔案：{files_to_keep[0].name}")
+    
+    logging.info(f"總共刪除 {deleted_count} 個舊銷售報表合併檔案")
+
 def main():
     """主函數"""
     logging.info("=" * 50)
@@ -213,6 +259,10 @@ def main():
         # 清理 temp 目錄下的處理後檔案
         logging.info("開始清理 temp 目錄下的處理後檔案...")
         cleanup_input_files(csv_files)
+        
+        # 清理 temp\\etmall 目錄下的舊銷售報表合併檔案，只保留最新的
+        logging.info("開始清理 temp\\etmall 目錄下的舊銷售報表合併檔案...")
+        cleanup_old_merged_files(output_dir, keep_latest=True)
     else:
         logging.error("❌ 合併失敗！")
 

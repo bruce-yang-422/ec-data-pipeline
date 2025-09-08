@@ -223,6 +223,100 @@ def cleanup_input_files(csv_files: list, logger):
     
     logger.info(f"總共刪除 {deleted_count} 個輸入檔案")
 
+def cleanup_old_merged_files(output_dir: Path, logger, keep_latest: bool = True):
+    """
+    清理 temp\\etmall 目錄下的舊出貨報表合併檔案，只保留最新的
+    
+    Args:
+        output_dir: temp\\etmall 目錄路徑
+        logger: 日誌記錄器
+        keep_latest: 是否保留最新的檔案
+    """
+    if not output_dir.exists():
+        logger.warning(f"目錄不存在：{output_dir}")
+        return
+    
+    # 尋找所有出貨報表合併檔案
+    merged_files = list(output_dir.glob("etmall_shipping_orders_merged_*.csv"))
+    
+    if not merged_files:
+        logger.info("沒有找到需要清理的出貨報表合併檔案")
+        return
+    
+    # 按修改時間排序，最新的在最後
+    merged_files.sort(key=lambda x: x.stat().st_mtime)
+    
+    if keep_latest:
+        # 保留最新的檔案
+        files_to_delete = merged_files[:-1]  # 除了最後一個（最新的）
+        files_to_keep = merged_files[-1:]    # 只保留最新的
+    else:
+        # 刪除所有檔案
+        files_to_delete = merged_files
+        files_to_keep = []
+    
+    deleted_count = 0
+    for file_path in files_to_delete:
+        try:
+            if file_path.exists():
+                file_path.unlink()
+                logger.info(f"已刪除舊檔案：{file_path.name}")
+                deleted_count += 1
+        except Exception as e:
+            logger.warning(f"刪除檔案失敗：{file_path.name} - {str(e)}")
+    
+    if files_to_keep:
+        logger.info(f"保留最新檔案：{files_to_keep[0].name}")
+    
+    logger.info(f"總共刪除 {deleted_count} 個舊出貨報表合併檔案")
+
+def cleanup_old_log_files(logs_dir: Path, logger, keep_latest: bool = True):
+    """
+    清理 logs 目錄下的舊日誌檔案，只保留最新的
+    
+    Args:
+        logs_dir: logs 目錄路徑
+        logger: 日誌記錄器
+        keep_latest: 是否保留最新的檔案
+    """
+    if not logs_dir.exists():
+        logger.warning(f"日誌目錄不存在：{logs_dir}")
+        return
+    
+    # 尋找所有出貨報表合併腳本的日誌檔案
+    log_files = list(logs_dir.glob("etmall_shipping_orders_merger_*.log"))
+    
+    if not log_files:
+        logger.info("沒有找到需要清理的出貨報表合併腳本日誌檔案")
+        return
+    
+    # 按修改時間排序，最新的在最後
+    log_files.sort(key=lambda x: x.stat().st_mtime)
+    
+    if keep_latest:
+        # 保留最新的檔案
+        files_to_delete = log_files[:-1]  # 除了最後一個（最新的）
+        files_to_keep = log_files[-1:]    # 只保留最新的
+    else:
+        # 刪除所有檔案
+        files_to_delete = log_files
+        files_to_keep = []
+    
+    deleted_count = 0
+    for file_path in files_to_delete:
+        try:
+            if file_path.exists():
+                file_path.unlink()
+                logger.info(f"已刪除舊日誌檔案：{file_path.name}")
+                deleted_count += 1
+        except Exception as e:
+            logger.warning(f"刪除日誌檔案失敗：{file_path.name} - {str(e)}")
+    
+    if files_to_keep:
+        logger.info(f"保留最新日誌檔案：{files_to_keep[0].name}")
+    
+    logger.info(f"總共刪除 {deleted_count} 個舊日誌檔案")
+
 def main():
     """主函數"""
     logger = setup_logging()
@@ -283,6 +377,14 @@ def main():
         
         # 注意：data_raw 下的原始檔案不刪除，只清理 temp 目錄下的處理後檔案
         logger.info("注意：data_raw 下的原始檔案已保留，未進行刪除")
+        
+        # 清理 temp\\etmall 目錄下的舊出貨報表合併檔案，只保留最新的
+        logger.info("開始清理 temp\\etmall 目錄下的舊出貨報表合併檔案...")
+        cleanup_old_merged_files(Path(output_dir), logger, keep_latest=True)
+        
+        # 清理 logs 目錄下的舊日誌檔案，只保留最新的
+        logger.info("開始清理 logs 目錄下的舊日誌檔案...")
+        cleanup_old_log_files(Path("logs"), logger, keep_latest=True)
     else:
         logger.error("腳本執行失敗")
 
