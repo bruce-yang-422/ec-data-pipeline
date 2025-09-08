@@ -78,35 +78,36 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
         original_columns = len(df.columns)
         logging.info(f"原始欄位數量：{original_columns}")
         
-        # 定義需要保留的欄位（銷售報表欄位對應）
-        target_columns = [
-            'delivery_company',      # 對應：公司
-            'order_sn',              # 對應：訂單編號
-            'seller_product_sn',     # 對應：子商品商品編號
-            'product_name_platform', # 對應：商品名稱
-            'quantity',              # 對應：數量
-            'unit_price',            # 對應：售價
-            'customer_name',         # 空欄位（銷售報表無此欄位）
-            'shipping_address',      # 空欄位（銷售報表無此欄位）
-            'customer_day_phone',    # 空欄位（銷售報表無此欄位）
-            'platform',              # 對應：通路
-            'note',                  # 空欄位（銷售報表無此欄位）
-            'order_amount',          # 空欄位（銷售報表無此欄位）
-            'cost_to_platform',      # 對應：成本
-            'order_date'             # 對應：訂單日期
-        ]
-        
-        # 銷售報表原始欄位對應
+        # 銷售報表原始欄位對應（按照原始順序）
         sales_report_mapping = {
-            '公司': 'delivery_company',
+            '訂單日期': 'order_date',
             '訂單編號': 'order_sn',
+            '項次': 'item_no',
+            '配送狀態': 'delivery_status',
+            '訂單狀態': 'order_status',
+            '商品屬性': 'product_type',
+            '銷售編號': 'sales_no',
+            '子商品銷售編號': 'sub_sales_no',
             '子商品商品編號': 'seller_product_sn',
+            '配送方式': 'delivery_method',
             '商品名稱': 'product_name_platform',
-            '數量': 'quantity',
+            '顏色': 'color',
+            '款式': 'style',
             '售價': 'unit_price',
-            '通路': 'platform',
             '成本': 'cost_to_platform',
-            '訂單日期': 'order_date'
+            '數量': 'quantity',
+            '通路': 'platform',
+            '配送確認日': 'delivery_confirm_date',
+            '公司': 'delivery_company'
+        }
+        
+        # 需要添加的空欄位
+        additional_columns = {
+            'customer_name': '',
+            'shipping_address': '',
+            'customer_day_phone': '',
+            'note': '',
+            'order_amount': ''
         }
         
         # 建立新的 DataFrame 來存放對應後的欄位，保持原始欄位順序
@@ -125,9 +126,9 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
                 logging.info(f"跳過欄位：{original_col}")
         
         # 為缺少的目標欄位添加空欄位
-        for target_col in target_columns:
+        for target_col, default_value in additional_columns.items():
             if target_col not in df_cleaned.columns:
-                df_cleaned[target_col] = ''
+                df_cleaned[target_col] = default_value
                 logging.info(f"添加空欄位：{target_col}")
         
         # 保持原始欄位順序，不重新排序
@@ -201,18 +202,18 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
             logging.warning("未找到 order_sn 欄位，跳過 order_sn 驗證")
         
         # 建立 temp 目錄結構
-        # 計算相對路徑：從 data_raw/etmall 開始
-        etmall_index = None
+        # 計算相對路徑：從 data_raw/etmall/sales_report 開始
+        sales_report_index = None
         for i, part in enumerate(file_path.parts):
-            if part == 'etmall':
-                etmall_index = i
+            if part == 'sales_report':
+                sales_report_index = i
                 break
         
-        if etmall_index is None:
-            raise ValueError(f"無法在路徑中找到 'etmall' 目錄：{file_path}")
+        if sales_report_index is None:
+            raise ValueError(f"無法在路徑中找到 'sales_report' 目錄：{file_path}")
         
-        # 從 etmall 之後的路徑部分
-        relative_parts = file_path.parts[etmall_index + 1:]
+        # 從 sales_report 之後的路徑部分（跳過 sales_report 目錄）
+        relative_parts = file_path.parts[sales_report_index + 1:]
         temp_file_path = temp_dir / Path(*relative_parts)
         
         # 確保目標目錄存在
