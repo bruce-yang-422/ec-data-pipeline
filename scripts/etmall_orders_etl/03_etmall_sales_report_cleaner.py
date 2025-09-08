@@ -109,28 +109,28 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
             '訂單日期': 'order_date'
         }
         
-        # 建立新的 DataFrame 來存放對應後的欄位
+        # 建立新的 DataFrame 來存放對應後的欄位，保持原始欄位順序
         df_cleaned = pd.DataFrame()
         
-        # 對應銷售報表欄位到目標欄位
-        for target_col in target_columns:
-            # 尋找對應的原始欄位
-            source_col = None
-            for original_col, mapped_col in sales_report_mapping.items():
-                if mapped_col == target_col and original_col in df.columns:
-                    source_col = original_col
-                    break
+        # 按照原始銷售報表的欄位順序進行對應
+        for original_col in df.columns:
+            # 檢查是否有對應的目標欄位
+            target_col = sales_report_mapping.get(original_col)
             
-            if source_col:
-                df_cleaned[target_col] = df[source_col]
-                logging.info(f"對應欄位：{source_col} -> {target_col}")
+            if target_col:
+                df_cleaned[target_col] = df[original_col]
+                logging.info(f"對應欄位：{original_col} -> {target_col}")
             else:
-                # 如果沒有對應的原始欄位，建立空欄位
+                # 如果沒有對應的目標欄位，跳過此欄位
+                logging.info(f"跳過欄位：{original_col}")
+        
+        # 為缺少的目標欄位添加空欄位
+        for target_col in target_columns:
+            if target_col not in df_cleaned.columns:
                 df_cleaned[target_col] = ''
                 logging.info(f"添加空欄位：{target_col}")
         
-        # 確保欄位順序正確
-        df_cleaned = df_cleaned[target_columns]
+        # 保持原始欄位順序，不重新排序
         
         # 記錄清洗後的欄位數量
         cleaned_columns = len(df_cleaned.columns)
