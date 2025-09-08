@@ -78,60 +78,112 @@ def clean_order_report_file(file_path: Path, temp_dir: Path) -> bool:
         original_columns = len(df.columns)
         logging.info(f"原始欄位數量：{original_columns}")
         
-        # 銷售報表原始欄位對應（按照原始順序）
+        # 銷售報表原始欄位對應（按照 etmall_fields_mapping.json 的順序）
         sales_report_mapping = {
             '訂單日期': 'order_date',
             '訂單編號': 'order_sn',
             '項次': 'item_no',
-            '配送狀態': 'delivery_status',
+            '配送狀態': 'shipping_status',
             '訂單狀態': 'order_status',
-            '商品屬性': 'product_type',
-            '銷售編號': 'sales_no',
-            '子商品銷售編號': 'sub_sales_no',
-            '子商品商品編號': 'seller_product_sn',
-            '配送方式': 'delivery_method',
+            '商品屬性': 'product_attribute',
+            '銷售編號': 'product_sale_id',
+            '子商品銷售編號': 'sub_sale_id',
+            '子商品商品編號': 'sub_product_id',
+            '配送方式': 'shipping_method',
             '商品名稱': 'product_name_platform',
             '顏色': 'color',
             '款式': 'style',
             '售價': 'unit_price',
             '成本': 'cost_to_platform',
             '數量': 'quantity',
-            '通路': 'platform',
-            '配送確認日': 'delivery_confirm_date',
-            '公司': 'delivery_company'
+            '通路': 'channel',
+            '配送確認日': 'shipping_confirm_date',
+            '公司': 'supplier'
         }
         
-        # 需要添加的空欄位
+        # 需要添加的空欄位（按照 etmall_fields_mapping.json 的順序）
         additional_columns = {
+            'platform': 'etmall',
+            'order_time': '',
+            'order_line_uid': '',
+            'merge_no': '',
+            'order_type': '',
+            'order_type_code': '',
+            'shipping_sn': '',
+            'shipping_carrier': '',
+            'shipping_code': '',
+            'shipping_request_date': '',
+            'shipping_expected_date': '',
+            'shipping_expected_time': '',
+            'product_id': '',
+            'seller_product_sn': '',
             'customer_name': '',
+            'customer_phone': '',
+            'customer_tel': '',
             'shipping_address': '',
-            'customer_day_phone': '',
             'note': '',
+            'gift_info': '',
+            'vendor_shipping_note': '',
+            'expected_stockin_date': '',
+            'expected_delivery_date': '',
+            'channel_type': '',
+            'shop_id': '',
+            'shop_name': '',
+            'shop_business_model': '',
+            'location': '',
+            'department': '',
+            'manager': '',
+            'category_level_1': '',
+            'category_level_2': '',
+            'brand': '',
+            'series': '',
+            'pet_type': '',
+            'product_name': '',
+            'item_code': '',
+            'sku': '',
+            'tags': '',
+            'spec': '',
+            'unit': '',
+            'origin': '',
+            'supplier_code': '',
+            'purchase_cost': '',
             'order_amount': ''
         }
         
-        # 建立新的 DataFrame 來存放對應後的欄位，保持原始欄位順序
+        # 建立新的 DataFrame 來存放對應後的欄位，按照 etmall_fields_mapping.json 的順序
         df_cleaned = pd.DataFrame()
         
-        # 按照原始銷售報表的欄位順序進行對應
+        # 定義完整的欄位順序（按照 etmall_fields_mapping.json 的 order 順序）
+        field_order = [
+            'platform', 'order_date', 'order_time', 'order_sn', 'item_no', 'order_line_uid', 'merge_no',
+            'shipping_status', 'order_status', 'order_type', 'order_type_code', 'shipping_sn', 'shipping_carrier',
+            'shipping_code', 'shipping_method', 'shipping_request_date', 'shipping_expected_date', 'shipping_expected_time',
+            'shipping_confirm_date', 'product_sale_id', 'sub_sale_id', 'product_id', 'sub_product_id', 'product_name_platform',
+            'color', 'style', 'product_attribute', 'seller_product_sn', 'quantity', 'unit_price', 'cost_to_platform',
+            'purchase_cost', 'customer_name', 'customer_phone', 'customer_tel', 'shipping_address', 'note', 'gift_info',
+            'vendor_shipping_note', 'expected_stockin_date', 'expected_delivery_date', 'channel_type', 'channel',
+            'shop_id', 'shop_name', 'shop_business_model', 'location', 'department', 'manager', 'category_level_1',
+            'category_level_2', 'brand', 'series', 'pet_type', 'product_name', 'item_code', 'sku', 'tags', 'spec',
+            'unit', 'origin', 'supplier_code', 'supplier', 'order_amount'
+        ]
+        
+        # 先處理原始銷售報表的欄位對應
         for original_col in df.columns:
-            # 檢查是否有對應的目標欄位
             target_col = sales_report_mapping.get(original_col)
-            
             if target_col:
                 df_cleaned[target_col] = df[original_col]
                 logging.info(f"對應欄位：{original_col} -> {target_col}")
             else:
-                # 如果沒有對應的目標欄位，跳過此欄位
                 logging.info(f"跳過欄位：{original_col}")
         
-        # 為缺少的目標欄位添加空欄位
+        # 添加缺少的欄位
         for target_col, default_value in additional_columns.items():
             if target_col not in df_cleaned.columns:
                 df_cleaned[target_col] = default_value
                 logging.info(f"添加空欄位：{target_col}")
         
-        # 保持原始欄位順序，不重新排序
+        # 按照 field_order 重新排序欄位
+        df_cleaned = df_cleaned[field_order]
         
         # 記錄清洗後的欄位數量
         cleaned_columns = len(df_cleaned.columns)
