@@ -72,6 +72,8 @@ def clean_sales_report_file(file_path: Path, temp_dir: Path) -> bool:
         # 將所有欄位中的換行符號完全移除，確保 CSV 格式正確
         for col in df.columns:
             if df[col].dtype == 'object':  # 只處理字串欄位
+                # 先將 NaN 值替換為空字串，避免轉換為 "nan"
+                df[col] = df[col].fillna('')
                 df[col] = df[col].astype(str)
                 # 完全移除所有換行符號
                 df[col] = df[col].str.replace('\r\n', '', regex=False)
@@ -267,6 +269,52 @@ def clean_sales_report_file(file_path: Path, temp_dir: Path) -> bool:
         logging.error(f"清洗檔案失敗：{file_path.name} - {str(e)}")
         return False
 
+def cleanup_old_log_files(logs_dir: Path, keep_latest: bool = True):
+    """
+    清理 logs 目錄下的舊日誌檔案，只保留最新的
+    
+    Args:
+        logs_dir: logs 目錄路徑
+        keep_latest: 是否保留最新的檔案
+    """
+    if not logs_dir.exists():
+        logging.warning(f"日誌目錄不存在：{logs_dir}")
+        return
+    
+    # 尋找所有銷售報表清洗腳本的日誌檔案
+    log_files = list(logs_dir.glob("etmall_sales_report_cleaner*.log"))
+    
+    if not log_files:
+        logging.info("沒有找到需要清理的銷售報表清洗腳本日誌檔案")
+        return
+    
+    # 按修改時間排序，最新的在最後
+    log_files.sort(key=lambda x: x.stat().st_mtime)
+    
+    if keep_latest:
+        # 保留最新的檔案
+        files_to_delete = log_files[:-1]  # 除了最後一個（最新的）
+        files_to_keep = log_files[-1:]    # 只保留最新的
+    else:
+        # 刪除所有檔案
+        files_to_delete = log_files
+        files_to_keep = []
+    
+    deleted_count = 0
+    for file_path in files_to_delete:
+        try:
+            if file_path.exists():
+                file_path.unlink()
+                logging.info(f"已刪除舊日誌檔案：{file_path.name}")
+                deleted_count += 1
+        except Exception as e:
+            logging.warning(f"刪除日誌檔案失敗：{file_path.name} - {str(e)}")
+    
+    if files_to_keep:
+        logging.info(f"保留最新日誌檔案：{files_to_keep[0].name}")
+    
+    logging.info(f"總共刪除 {deleted_count} 個舊日誌檔案")
+
 def main():
     """主函數"""
     logging.info("=" * 50)
@@ -309,6 +357,10 @@ def main():
     logging.info(f"   - 輸出目錄：{temp_dir}")
     logging.info("✅ 銷售報表清洗完成！")
     logging.info("=" * 50)
+    
+    # 清理 logs 目錄下的舊日誌檔案，只保留最新的
+    logging.info("開始清理 logs 目錄下的舊日誌檔案...")
+    cleanup_old_log_files(Path("logs"), keep_latest=True)
 
 if __name__ == "__main__":
     main()

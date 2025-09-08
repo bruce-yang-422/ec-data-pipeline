@@ -87,6 +87,37 @@ def process_csv_file(file_path, logger):
                     
                     logger.info(f"已分離 {col} 為 {date_col} 和 {time_col}")
         
+        # 處理特定欄位前面的單引號（加上單引號）
+        quote_columns = ['送貨單號', '銷售編號', '廠商商品號碼']
+        for col in quote_columns:
+            if col in df.columns:
+                # 在欄位值前面加上單引號
+                df[col] = "'" + df[col].astype(str)
+                logger.info(f"已處理 {col} 欄位，加上前導單引號")
+        
+        # 處理電話欄位的特殊格式（加上 '0 前綴）
+        phone_columns = ['客戶電話', '室內電話']
+        for col in phone_columns:
+            if col in df.columns:
+                # 先將電話號碼轉換為字串，移除小數點和 .0 結尾
+                phone_str = df[col].astype(str)
+                # 移除 .0 結尾
+                phone_str = phone_str.str.replace(r'\.0$', '', regex=True)
+                # 處理 NaN 值，將其替換為空字串
+                phone_str = phone_str.replace('nan', '')
+                phone_str = phone_str.replace('NaN', '')
+                # 只對非空值加上 '0 前綴，空值保持空白
+                df[col] = phone_str.apply(lambda x: "'0" + x if x.strip() != '' and x != 'nan' and x != 'NaN' else '')
+                logger.info(f"已處理 {col} 欄位，加上 '0 前綴並移除小數點和 NaN，空值保持空白")
+        
+        # 處理備註欄位，將無值或空值改為空白
+        if '備註' in df.columns:
+            df['備註'] = df['備註'].fillna('').astype(str)
+            # 將所有包含「無」的內容都替換為空白
+            df['備註'] = df['備註'].str.replace(r'無.*', '', regex=True)
+            df['備註'] = df['備註'].replace(['nan', 'NaN', 'None'], '')
+            logger.info("已處理 備註 欄位，將無值或空值改為空白")
+        
         # 新增訂單ID欄位
         # 將訂單項次轉換為兩位數格式 (例如：1 -> 01, 2 -> 02)
         df['訂單ID'] = df['訂單號碼'].astype(str) + '_' + df['訂單項次'].astype(str).str.zfill(2)
@@ -180,6 +211,8 @@ def convert_columns_to_english(df, logger):
         else:
             logger.info("沒有需要轉換的中文欄位")
         
+        # 注意：格式處理已在中文欄位階段完成，不需要重複處理英文欄位
+        
         return df_renamed
         
     except Exception as e:
@@ -195,7 +228,7 @@ def save_merged_file(merged_df, output_dir, logger):
     output_file = output_dir / f"etmall_shipping_orders_merged_{timestamp}.csv"
     
     try:
-        merged_df.to_csv(output_file, index=False, encoding='utf-8-sig')
+        merged_df.to_csv(output_file, index=False, encoding='utf-8-sig', na_rep='')
         logger.info(f"合併檔案已儲存至: {output_file}")
         return output_file
     except Exception as e:
