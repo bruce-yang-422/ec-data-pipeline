@@ -226,6 +226,28 @@ def merge_orders(sales_df: pd.DataFrame, shipping_df: pd.DataFrame, output_dir: 
         logging.error(f"儲存檔案失敗：{str(e)}")
         return None
 
+def cleanup_input_files(sales_file: str, shipping_file: str):
+    """
+    清理輸入檔案
+    
+    Args:
+        sales_file: 銷售報表檔案路徑
+        shipping_file: 出貨報表檔案路徑
+    """
+    deleted_count = 0
+    files_to_delete = [Path(sales_file), Path(shipping_file)]
+    
+    for file_path in files_to_delete:
+        try:
+            if file_path.exists():
+                file_path.unlink()
+                logging.info(f"已刪除輸入檔案：{file_path.name}")
+                deleted_count += 1
+        except Exception as e:
+            logging.warning(f"刪除檔案失敗：{file_path.name} - {str(e)}")
+    
+    logging.info(f"總共刪除 {deleted_count} 個輸入檔案")
+
 def main():
     """主函數"""
     logging.info("=" * 50)
@@ -266,6 +288,10 @@ def main():
         logging.info(f"   - 輸出位置：{output_path}")
         logging.info("✅ 訂單合併完成！")
         logging.info("=" * 50)
+        
+        # 清理 temp 目錄下的處理後檔案
+        logging.info("開始清理 temp 目錄下的處理後檔案...")
+        cleanup_input_files(sales_file, shipping_file)
     else:
         logging.error("❌ 合併失敗！")
 

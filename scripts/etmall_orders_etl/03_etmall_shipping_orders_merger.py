@@ -202,6 +202,27 @@ def save_merged_file(merged_df, output_dir, logger):
         logger.error(f"儲存檔案時發生錯誤: {str(e)}")
         return None
 
+def cleanup_input_files(csv_files: list, logger):
+    """
+    清理輸入檔案
+    
+    Args:
+        csv_files: 要刪除的 CSV 檔案路徑列表
+        logger: 日誌記錄器
+    """
+    deleted_count = 0
+    for file_path in csv_files:
+        try:
+            file_path_obj = Path(file_path)
+            if file_path_obj.exists():
+                file_path_obj.unlink()
+                logger.info(f"已刪除輸入檔案：{file_path_obj.name}")
+                deleted_count += 1
+        except Exception as e:
+            logger.warning(f"刪除檔案失敗：{file_path} - {str(e)}")
+    
+    logger.info(f"總共刪除 {deleted_count} 個輸入檔案")
+
 def main():
     """主函數"""
     logger = setup_logging()
@@ -259,6 +280,9 @@ def main():
         logger.info("腳本執行完成！")
         logger.info(f"輸出檔案: {output_file}")
         logger.info(f"總資料筆數: {len(merged_df)}")
+        
+        # 注意：data_raw 下的原始檔案不刪除，只清理 temp 目錄下的處理後檔案
+        logger.info("注意：data_raw 下的原始檔案已保留，未進行刪除")
     else:
         logger.error("腳本執行失敗")
 
